@@ -1,17 +1,16 @@
 use ttrpc_codegen::{Codegen, Customize, ProtobufCustomize};
 
 const PROTO_FILES: &[&str] = &[
-    "src/vendor/api.proto",
+    "./vendor/api.proto",
 ];
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = std::fs::create_dir("src/protocols");
     let protobuf_customized = ProtobufCustomize::default().gen_mod_rs(true);
 
     Codegen::new()
-        .out_dir("src/protocols")
+        .out_dir("./src")
         .inputs(PROTO_FILES)
-        .include("src/vendor")
+        .include("./vendor")
         .rust_protobuf()
         .customize(Customize {
             async_all: true,

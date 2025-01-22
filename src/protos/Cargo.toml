@@ -1,0 +1,11 @@
+[package]
+name = "protos"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+
+
+[build-dependencies]
+prost-build  = { workspace = true } 
+ttrpc-codegen = { workspace = true } 

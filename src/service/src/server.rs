@@ -5,9 +5,6 @@ use std::error::Error;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-mod proto {
-    include!("protocols/api_ttrpc.rs");
-}
 
 struct HelloServiceImpl {
    
@@ -27,8 +24,8 @@ impl proto::hello_service::HelloService for HelloServiceImpl {
     }
 }
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
+
+async fn start_server() -> Result<(), Box<dyn Error>> {
     let addr = "127.0.0.1:50051".parse()?;
     let service = Arc::new(Mutex::new(HelloServiceImpl {}));
     let mut server = Server::new()?;
