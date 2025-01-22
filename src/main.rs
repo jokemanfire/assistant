@@ -57,6 +57,15 @@ fn play_audio(audio_data: Vec<u8>) -> Result<(), Box<dyn Error>> {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+    // Conect to ttrpc server
+    let addr = "127.0.0.1:50051";
+
+    let clinet = HelloServiceClient::new(Client::connect(addr).await?);
+    let request = HelloRequest {
+        name: "world".to_string(),
+    };
+    let response = client.hello_world(Context::default(), &request).await?;
+    
     let host = cpal::default_host();
     let device = host.default_input_device().ok_or("No input device found")?;
     let config = device.default_input_config()?;

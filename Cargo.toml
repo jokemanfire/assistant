@@ -9,3 +9,8 @@ cpal = "0.14"
 serde_json = "1.0"
 tokio = { version = "1", features = ["full"] }
 rodio = "0.15"
+ttrpc = "*"
+
+[build-dependencies]
+prost-build  = "*"
+ttrpc-codegen = "*"
