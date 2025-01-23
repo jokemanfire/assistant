@@ -4,7 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-
+async-trait.workspace = true
+protobuf.workspace = true
+ttrpc= {workspace =true, features = ["async"]}
 
 [build-dependencies]
 prost-build  = { workspace = true } 

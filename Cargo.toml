@@ -1,14 +1,16 @@
 [workspace]
-members = ["src/client", "src/service","src/protos"]
-
+# members = ["src/client", "src/service","src/protos"]
+members = ["src/protos", "src/service"]
 [workspace.dependencies]
-reqwest = { version = "0.11", features = ["json"] }
-cpal = "0.14"
+reqwest = { version = "0.12", features = ["json"] }
+cpal = "0.15"
 serde_json = "1.0"
 tokio = { version = "1", features = ["full"] }
-rodio = "0.15"
-ttrpc = "*"
-prost-build  = "*"
-ttrpc-codegen = "*"
-
-
+rodio = "0.20"
+ttrpc = "0.8.1"
+prost-build  = "0.12"
+ttrpc-codegen = "0.5"
+thiserror = "2.0"
+prost = { version = "0.12" }
+async-trait = "0.1"
+protobuf = "3.1.0"

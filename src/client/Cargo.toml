@@ -4,12 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-reqwest = { version = "0.11", features = ["json"] }
-cpal = "0.14"
-serde_json = "1.0"
-tokio = { version = "1", features = ["full"] }
-rodio = "0.15"
-ttrpc = "*"
+reqwest = {workspace = true}
+cpal = {workspace = true}
+serde_json = {workspace = true}
+tokio = {workspace = true}
+rodio = {workspace = true}
+ttrpc =  {workspace = true}
 protos = {path = "../protos"}
 
 

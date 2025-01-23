@@ -18,22 +18,22 @@
 #![allow(unused_results)]
 #![allow(unused_mut)]
 
-//! Generated file from `api.proto`
+//! Generated file from `model.proto`
 
 /// Generated files are compatible only with the same version
 /// of protobuf runtime.
 const _PROTOBUF_VERSION_CHECK: () = ::protobuf::VERSION_3_7_1;
 
-// @@protoc_insertion_point(message:SpeechRequest)
+// @@protoc_insertion_point(message:model.SpeechRequest)
 #[derive(PartialEq,Clone,Default,Debug)]
 pub struct SpeechRequest {
     // message fields
-    // @@protoc_insertion_point(field:SpeechRequest.audio_data)
-    pub audio_data: ::std::vec::Vec<u8>,
-    // @@protoc_insertion_point(field:SpeechRequest.audio_format)
+    // @@protoc_insertion_point(field:model.SpeechRequest.audio_data)
+    pub audio_data: ::std::string::String,
+    // @@protoc_insertion_point(field:model.SpeechRequest.audio_format)
     pub audio_format: ::std::string::String,
     // special fields
-    // @@protoc_insertion_point(special_field:SpeechRequest.special_fields)
+    // @@protoc_insertion_point(special_field:model.SpeechRequest.special_fields)
     pub special_fields: ::protobuf::SpecialFields,
 }
 
@@ -80,7 +80,7 @@ impl ::protobuf::Message for SpeechRequest {
         while let Some(tag) = is.read_raw_tag_or_eof()? {
             match tag {
                 10 => {
-                    self.audio_data = is.read_bytes()?;
+                    self.audio_data = is.read_string()?;
                 },
                 18 => {
                     self.audio_format = is.read_string()?;
@@ -98,7 +98,7 @@ impl ::protobuf::Message for SpeechRequest {
     fn compute_size(&self) -> u64 {
         let mut my_size = 0;
         if !self.audio_data.is_empty() {
-            my_size += ::protobuf::rt::bytes_size(1, &self.audio_data);
+            my_size += ::protobuf::rt::string_size(1, &self.audio_data);
         }
         if !self.audio_format.is_empty() {
             my_size += ::protobuf::rt::string_size(2, &self.audio_format);
@@ -110,7 +110,7 @@ impl ::protobuf::Message for SpeechRequest {
 
     fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
         if !self.audio_data.is_empty() {
-            os.write_bytes(1, &self.audio_data)?;
+            os.write_string(1, &self.audio_data)?;
         }
         if !self.audio_format.is_empty() {
             os.write_string(2, &self.audio_format)?;
@@ -139,7 +139,7 @@ impl ::protobuf::Message for SpeechRequest {
 
     fn default_instance() -> &'static SpeechRequest {
         static instance: SpeechRequest = SpeechRequest {
-            audio_data: ::std::vec::Vec::new(),
+            audio_data: ::std::string::String::new(),
             audio_format: ::std::string::String::new(),
             special_fields: ::protobuf::SpecialFields::new(),
         };
@@ -164,14 +164,14 @@ impl ::protobuf::reflect::ProtobufValue for SpeechRequest {
     type RuntimeType = ::protobuf::reflect::rt::RuntimeTypeMessage<Self>;
 }
 
-// @@protoc_insertion_point(message:TextRequest)
+// @@protoc_insertion_point(message:model.TextRequest)
 #[derive(PartialEq,Clone,Default,Debug)]
 pub struct TextRequest {
     // message fields
-    // @@protoc_insertion_point(field:TextRequest.text)
+    // @@protoc_insertion_point(field:model.TextRequest.text)
     pub text: ::std::string::String,
     // special fields
-    // @@protoc_insertion_point(special_field:TextRequest.special_fields)
+    // @@protoc_insertion_point(special_field:model.TextRequest.special_fields)
     pub special_fields: ::protobuf::SpecialFields,
 }
 
@@ -286,14 +286,14 @@ impl ::protobuf::reflect::ProtobufValue for TextRequest {
     type RuntimeType = ::protobuf::reflect::rt::RuntimeTypeMessage<Self>;
 }
 
-// @@protoc_insertion_point(message:TextResponse)
+// @@protoc_insertion_point(message:model.TextResponse)
 #[derive(PartialEq,Clone,Default,Debug)]
 pub struct TextResponse {
     // message fields
-    // @@protoc_insertion_point(field:TextResponse.text)
+    // @@protoc_insertion_point(field:model.TextResponse.text)
     pub text: ::std::string::String,
     // special fields
-    // @@protoc_insertion_point(special_field:TextResponse.special_fields)
+    // @@protoc_insertion_point(special_field:model.TextResponse.special_fields)
     pub special_fields: ::protobuf::SpecialFields,
 }
 
@@ -408,16 +408,16 @@ impl ::protobuf::reflect::ProtobufValue for TextResponse {
     type RuntimeType = ::protobuf::reflect::rt::RuntimeTypeMessage<Self>;
 }
 
-// @@protoc_insertion_point(message:SpeechResponse)
+// @@protoc_insertion_point(message:model.SpeechResponse)
 #[derive(PartialEq,Clone,Default,Debug)]
 pub struct SpeechResponse {
     // message fields
-    // @@protoc_insertion_point(field:SpeechResponse.audio_data)
-    pub audio_data: ::std::vec::Vec<u8>,
-    // @@protoc_insertion_point(field:SpeechResponse.audio_format)
+    // @@protoc_insertion_point(field:model.SpeechResponse.audio_data)
+    pub audio_data: ::std::string::String,
+    // @@protoc_insertion_point(field:model.SpeechResponse.audio_format)
     pub audio_format: ::std::string::String,
     // special fields
-    // @@protoc_insertion_point(special_field:SpeechResponse.special_fields)
+    // @@protoc_insertion_point(special_field:model.SpeechResponse.special_fields)
     pub special_fields: ::protobuf::SpecialFields,
 }
 
@@ -464,7 +464,7 @@ impl ::protobuf::Message for SpeechResponse {
         while let Some(tag) = is.read_raw_tag_or_eof()? {
             match tag {
                 10 => {
-                    self.audio_data = is.read_bytes()?;
+                    self.audio_data = is.read_string()?;
                 },
                 18 => {
                     self.audio_format = is.read_string()?;
@@ -482,7 +482,7 @@ impl ::protobuf::Message for SpeechResponse {
     fn compute_size(&self) -> u64 {
         let mut my_size = 0;
         if !self.audio_data.is_empty() {
-            my_size += ::protobuf::rt::bytes_size(1, &self.audio_data);
+            my_size += ::protobuf::rt::string_size(1, &self.audio_data);
         }
         if !self.audio_format.is_empty() {
             my_size += ::protobuf::rt::string_size(2, &self.audio_format);
@@ -494,7 +494,7 @@ impl ::protobuf::Message for SpeechResponse {
 
     fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
         if !self.audio_data.is_empty() {
-            os.write_bytes(1, &self.audio_data)?;
+            os.write_string(1, &self.audio_data)?;
         }
         if !self.audio_format.is_empty() {
             os.write_string(2, &self.audio_format)?;
@@ -523,7 +523,7 @@ impl ::protobuf::Message for SpeechResponse {
 
     fn default_instance() -> &'static SpeechResponse {
         static instance: SpeechResponse = SpeechResponse {
-            audio_data: ::std::vec::Vec::new(),
+            audio_data: ::std::string::String::new(),
             audio_format: ::std::string::String::new(),
             special_fields: ::protobuf::SpecialFields::new(),
         };
@@ -549,15 +549,16 @@ impl ::protobuf::reflect::ProtobufValue for SpeechResponse {
 }
 
 static file_descriptor_proto_data: &'static [u8] = b"\
-    \n\tapi.proto\"Q\n\rSpeechRequest\x12\x1d\n\naudio_data\x18\x01\x20\x01(\
-    \x0cR\taudioData\x12!\n\x0caudio_format\x18\x02\x20\x01(\tR\x0baudioForm\
-    at\"!\n\x0bTextRequest\x12\x12\n\x04text\x18\x01\x20\x01(\tR\x04text\"\"\
-    \n\x0cTextResponse\x12\x12\n\x04text\x18\x01\x20\x01(\tR\x04text\"R\n\
-    \x0eSpeechResponse\x12\x1d\n\naudio_data\x18\x01\x20\x01(\x0cR\taudioDat\
-    a\x12!\n\x0caudio_format\x18\x02\x20\x01(\tR\x0baudioFormat2\x95\x01\n\
-    \x0cModelService\x12-\n\x0cSpeechToText\x12\x0e.SpeechRequest\x1a\r.Text\
-    Response\x12'\n\x08TextChat\x12\x0c.TextRequest\x1a\r.TextResponse\x12-\
-    \n\x0cTextToSpeech\x12\x0c.TextRequest\x1a\x0f.SpeechResponseb\x06proto3\
+    \n\x0bmodel.proto\x12\x05model\"Q\n\rSpeechRequest\x12\x1d\n\naudio_data\
+    \x18\x01\x20\x01(\tR\taudioData\x12!\n\x0caudio_format\x18\x02\x20\x01(\
+    \tR\x0baudioFormat\"!\n\x0bTextRequest\x12\x12\n\x04text\x18\x01\x20\x01\
+    (\tR\x04text\"\"\n\x0cTextResponse\x12\x12\n\x04text\x18\x01\x20\x01(\tR\
+    \x04text\"R\n\x0eSpeechResponse\x12\x1d\n\naudio_data\x18\x01\x20\x01(\t\
+    R\taudioData\x12!\n\x0caudio_format\x18\x02\x20\x01(\tR\x0baudioFormat2\
+    \xb9\x01\n\x0cModelService\x129\n\x0cSpeechToText\x12\x14.model.SpeechRe\
+    quest\x1a\x13.model.TextResponse\x123\n\x08TextChat\x12\x12.model.TextRe\
+    quest\x1a\x13.model.TextResponse\x129\n\x0cTextToSpeech\x12\x12.model.Te\
+    xtRequest\x1a\x15.model.SpeechResponseb\x06proto3\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file

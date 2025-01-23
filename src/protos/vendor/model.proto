@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package model;
+
+
+
+message SpeechRequest {
+  string audio_data = 1;  
+  string audio_format = 2; 
+}
+
+
+message TextRequest {
+  string text = 1;  
+}
+
+
+message TextResponse {
+  string text = 1;  
+}
+
+
+message SpeechResponse {
+  string audio_data = 1;
+  string audio_format = 2; 
+}
+
+
+service ModelService {
+  rpc SpeechToText (SpeechRequest) returns (TextResponse);
+  rpc TextChat (TextRequest) returns (TextResponse);
+  rpc TextToSpeech (TextRequest) returns (SpeechResponse);
+}

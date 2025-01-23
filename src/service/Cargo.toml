@@ -5,3 +5,8 @@ edition = "2021"
 
 [dependencies]
 protos = {path = "../protos"}
+thiserror = {workspace = true}
+ttrpc = {workspace =true, features = ["async"]}
+prost = {workspace = true}
+tokio = {workspace = true}
+async-trait = {workspace = true}
