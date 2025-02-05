@@ -7,9 +7,9 @@ use serde_json::json;
 use rodio::source::Source;
 use rodio::{Decoder, OutputStream, Sink};
 
-const SPEECH_TO_TEXT_API_URL: &str = "https://speech-to-text-api.com/convert";
-const DIALOGUE_MODEL_API_URL: &str = "https://dialogue-model-api.com/chat";
-const TEXT_TO_SPEECH_API_URL: &str = "https://text-to-speech-api.com/convert";
+const SPEECH_TO_TEXT_API_URL: &str = "unix:///tmp/model-service.sock";
+const DIALOGUE_MODEL_API_URL: &str = "unix:///tmp/model-service.sock";
+const TEXT_TO_SPEECH_API_URL: &str = "unix:///tmp/model-service.sock";
 const API_KEY: &str = "your_api_key";
 
 async fn speech_to_text(audio_data: Vec<u8>) -> Result<String, Box<dyn Error>> {

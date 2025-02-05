@@ -14,3 +14,4 @@ thiserror = "2.0"
 prost = { version = "0.12" }
 async-trait = "0.1"
 protobuf = "3.1.0"
+serde = { version = "1.0", features = ["derive"] }

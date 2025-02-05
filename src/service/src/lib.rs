@@ -1,4 +1,7 @@
 pub mod server;
+pub mod config;
+pub mod dialogue_model;
+pub mod speech_to_text;
 
 use thiserror::Error;
 

@@ -1,0 +1,16 @@
+[server]
+addr = "unix:///tmp/model-service.sock"
+
+
+[speech_to_text]
+model_path= ""
+
+[dialogue_model]
+model= ""
+api_key= ""
+stream = true
+prompt_path= ""
+model_path="https://ark.cn-beijing.volces.com/api/v3/chat/completions"
+
+[text_to_speech]
+model_path= ""
