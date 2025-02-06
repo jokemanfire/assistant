@@ -1,5 +1,5 @@
 [server]
-addr = "unix:///tmp/model-service.sock"
+addr = "unix:///home/environment/model-service.sock"
 
 
 [speech_to_text]

@@ -22,14 +22,12 @@ pub async fn generate_response(text: &str) -> Result<String, Box<dyn std::error:
         }))
         .send()
         .await?;
-    println!("{:?}",response);
+    println!("{:?}", response);
     let body = response.text().await?;
-    println!("{:?}",body);
+    println!("{:?}", body);
     let response_text = body;
     Ok(response_text)
 }
-
-
 
 #[cfg(test)]
 
@@ -42,6 +40,6 @@ mod tests {
         let text = "Hello, how are you?";
         let response = generate_response(text).await.unwrap();
         // assert_eq!(response, "I'm fine, thank you. How are you?");
-        println!("{}",response);
+        println!("{}", response);
     }
 }

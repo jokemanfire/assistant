@@ -5,12 +5,15 @@ edition = "2021"
 
 [dependencies]
 reqwest = {workspace = true}
-cpal = {workspace = true}
+# cpal = {workspace = true}
 serde_json = {workspace = true}
 tokio = {workspace = true}
-rodio = {workspace = true}
+# rodio = {workspace = true}
 ttrpc =  {workspace = true}
 protos = {path = "../protos"}
+
+log = "0.4.6"
+simple-logging = "2.0.2"
 
 
 [build-dependencies]

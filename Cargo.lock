@@ -33,6 +33,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "34ac096ce696dc2fcabef30516bb13c0a68a11d30131d3df6f04711467681b04"
 
 [[package]]
+name = "assistant"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "prost-build 0.12.6",
+ "protos",
+ "reqwest",
+ "serde_json",
+ "simple-logging",
+ "tokio",
+ "ttrpc",
+ "ttrpc-codegen",
+]
+
+[[package]]
 name = "async-trait"
 version = "0.1.85"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -758,6 +773,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "lazy_static"
+version = "1.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
+
+[[package]]
 name = "libc"
 version = "0.2.169"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -972,7 +993,7 @@ checksum = "1e401f977ab385c9e4e3ab30627d6f26d00e2c73eef317493c4ec6d468726cf8"
 dependencies = [
  "cfg-if",
  "libc",
- "redox_syscall",
+ "redox_syscall 0.5.8",
  "smallvec",
  "windows-targets 0.52.6",
 ]
@@ -1229,6 +1250,12 @@ checksum = "0e4dccaaaf89514f546c693ddc140f729f958c247918a13380cccc6078391acc"
 dependencies = [
  "proc-macro2",
 ]
+
+[[package]]
+name = "redox_syscall"
+version = "0.1.57"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "41cc0f7e4d5d4544e8861606a285bb08d3e70712ccc7d2b84d7c0ccfaf4b05ce"
 
 [[package]]
 name = "redox_syscall"
@@ -1493,11 +1520,13 @@ name = "service"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "log",
  "prost 0.12.6",
  "protos",
  "reqwest",
  "serde",
  "serde_json",
+ "simple-logging",
  "thiserror 2.0.11",
  "tokio",
  "toml",
@@ -1517,6 +1546,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a9e9e0b4211b72e7b8b6e85c807d36c212bdb33ea8587f7569562a84df5465b1"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "simple-logging"
+version = "2.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b00d48e85675326bb182a2286ea7c1a0b264333ae10f27a937a72be08628b542"
+dependencies = [
+ "lazy_static",
+ "log",
+ "thread-id",
 ]
 
 [[package]]
@@ -1677,6 +1717,17 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.96",
+]
+
+[[package]]
+name = "thread-id"
+version = "3.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c7fbf4c9d56b320106cd64fd024dadfa0be7cb4706725fc44a7d7ce952d820c1"
+dependencies = [
+ "libc",
+ "redox_syscall 0.1.57",
+ "winapi",
 ]
 
 [[package]]
@@ -2065,6 +2116,28 @@ dependencies = [
  "once_cell",
  "rustix",
 ]
+
+[[package]]
+name = "winapi"
+version = "0.3.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5c839a674fcd7a98952e593242ea400abe93992746761e38641405d28b00f419"
+dependencies = [
+ "winapi-i686-pc-windows-gnu",
+ "winapi-x86_64-pc-windows-gnu",
+]
+
+[[package]]
+name = "winapi-i686-pc-windows-gnu"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ac3b87c63620426dd9b991e5ce0329eff545bccbbb34f3be09ff6fb6ab51b7b6"
+
+[[package]]
+name = "winapi-x86_64-pc-windows-gnu"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
 
 [[package]]
 name = "windows-registry"
