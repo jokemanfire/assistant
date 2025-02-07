@@ -15,7 +15,3 @@ protos = {path = "../protos"}
 log = "0.4.6"
 simple-logging = "2.0.2"
 
-
-[build-dependencies]
-prost-build  = "*"
-ttrpc-codegen = "*"

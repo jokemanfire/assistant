@@ -3,7 +3,7 @@ use ttrpc_codegen::{Codegen, Customize, ProtobufCustomize};
 const PROTO_FILES: &[&str] = &["./vendor/model.proto"];
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let protobuf_customized = ProtobufCustomize::default().gen_mod_rs(true);
+    let protobuf_customized = ProtobufCustomize::default();
     Codegen::new()
         .out_dir("./src")
         .inputs(PROTO_FILES)
@@ -11,7 +11,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .rust_protobuf()
         .customize(Customize {
             async_all: true,
-            async_server: false,
             gen_mod: false,
             ..Default::default()
         })

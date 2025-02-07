@@ -1,18 +1,23 @@
+use crate::config::Config;
 use reqwest::Client;
 use serde_json::json;
-
+use serde_json::Value;
 pub async fn generate_response(text: &str) -> Result<String, Box<dyn std::error::Error>> {
     let client = Client::new();
+    let cfg = Config::new();
     let response = client
-        .post("https://ark.cn-beijing.volces.com/api/v3/chat/completions")
+        .post(cfg.dialogue_model.model_path.unwrap())
         .header("Content-Type", "application/json")
-        .header("Authorization", "Bearer {token}")
+        .header(
+            "Authorization",
+            format!("Bearer {}", cfg.dialogue_model.api_key.unwrap()),
+        )
         .json(&json!({
-            "model": "ep-20250205152535-z4rzh",
+            "model": cfg.dialogue_model.model_name.unwrap(),
             "messages": [
                 {
                     "role": "system",
-                    "content": "You are a helpful assistant."
+                    "content": "你是一个女仆，请控制对话到10字以内"
                 },
                 {
                     "role": "user",
@@ -22,11 +27,18 @@ pub async fn generate_response(text: &str) -> Result<String, Box<dyn std::error:
         }))
         .send()
         .await?;
-    println!("{:?}", response);
+
+    if !response.status().is_success() {
+        return Err(format!("Request failed with status code: {}", response.status()).into());
+    }
+
     let body = response.text().await?;
-    println!("{:?}", body);
-    let response_text = body;
-    Ok(response_text)
+    let json_data: Value = serde_json::from_str(&body)?;
+    println!("{:?}", json_data);
+    let response_text = json_data["choices"][0]["message"]["content"]
+        .as_str()
+        .ok_or("Failed to extract response text")?;
+    Ok(response_text.to_string())
 }
 
 #[cfg(test)]

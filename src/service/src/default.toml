@@ -1,12 +1,12 @@
 [server]
-addr = "unix:///home/environment/model-service.sock"
+addr = "unix:///tmp/ttrpc-test"
 
 
 [speech_to_text]
 model_path= ""
 
 [dialogue_model]
-model= ""
+model_name= "ep-20250205152535-z4rzh"
 api_key= ""
 stream = true
 prompt_path= ""

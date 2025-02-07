@@ -1,0 +1,28 @@
+@startuml
+skinparam componentStyle uml2
+
+package "Client" as client {
+    component "TTRPC Client" as ttrpc_client
+}
+
+package "Service" as service {
+    component "TTRPC Server" as ttrpc_server
+    component "Model Manager" as model_manager {
+        component "Offline Models" as offline_models
+        component "Online Models" as online_models
+    }
+    component "Speech - to - Text Model" as stt_model
+    component "Dialogue Model" as dialogue_model
+    component "Text - to - Speech Model" as tts_model
+}
+
+ttrpc_client --> ttrpc_server : TTRPC requests
+ttrpc_server --> model_manager : Select model (offline/online)
+model_manager --> stt_model : Pass speech data (if speech - to - text)
+model_manager --> dialogue_model : Pass text data (if dialogue)
+model_manager --> tts_model : Pass text data (if text - to - speech)
+stt_model --> dialogue_model : Transcribed text
+dialogue_model --> tts_model : Generated response text
+tts_model --> ttrpc_server : Generated speech data
+ttrpc_server --> ttrpc_client : TTRPC responses
+@enduml

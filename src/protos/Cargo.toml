@@ -9,5 +9,5 @@ protobuf.workspace = true
 ttrpc= {workspace =true, features = ["async"]}
 
 [build-dependencies]
-prost-build  = { workspace = true } 
+# prost-build  = { workspace = true } 
 ttrpc-codegen = { workspace = true } 

@@ -1,7 +1,5 @@
 use reqwest::Client;
 use serde_json::json;
-use std::sync::Arc;
-use tokio::sync::Mutex;
 
 pub async fn capture_and_convert(_stream: Vec<u8>) -> Result<String, Box<dyn std::error::Error>> {
     let audio_data = "audio_data";
