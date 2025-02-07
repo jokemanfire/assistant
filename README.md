@@ -5,7 +5,7 @@
 This project implements a real-time voice assistant that seamlessly captures voice data through a microphone, converts it into text, processes the text using a dialogue model to generate a response, and finally converts the response text back into voice for playback.
 
 ## Design
-![PlantUML Diagram](design.puml)
+![design](https://github.com/jokemanfire/assistant/blob/main/design.png)
 
 ### Main Functional Modules
 
