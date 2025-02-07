@@ -1,10 +1,11 @@
 use std::{error::Error, process::exit};
 use tokio::signal::unix::signal;
+use crate::runmodel::{IoOption, ModelRunner};
 pub mod config;
 pub mod dialogue_model;
+pub mod runmodel;
 pub mod server;
 pub mod speech_to_text;
-
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn Error>> {

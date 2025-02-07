@@ -14,6 +14,7 @@ serde = { workspace = true}
 serde_json = { workspace = true}
 
 
+sfifo = {git = "https://github.com/jokemanfire/sfifo"}
 log = "0.4.6"
 simple-logging = "2.0.2"
 toml = "0.8.19"
