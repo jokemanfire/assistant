@@ -6,7 +6,7 @@ pub mod dialogue_model;
 pub mod runmodel;
 pub mod server;
 pub mod speech_to_text;
-
+pub mod manager;
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn Error>> {
     let r = server::start_server().await;
