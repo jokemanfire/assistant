@@ -1,17 +1,16 @@
-use std::{collections::VecDeque, f32::consts::E};
-use std::io::Error;
-use std::sync::Arc;
-use tokio::sync::{mpsc, Mutex};
 use crate::runmodel::IoOption;
 use crate::ModelRunner;
-use tokio::sync::mpsc::{Sender, Receiver};
+use std::io::Error;
+use std::sync::Arc;
+use std::{collections::VecDeque, f32::consts::E};
+use tokio::sync::mpsc::{Receiver, Sender};
+use tokio::sync::{mpsc, Mutex};
 
 pub struct ModelManager {
-    model_runners: Vec<(ModelRunner,Sender<String>,Receiver<String>)>,
+    model_runners: Vec<(ModelRunner, Sender<String>, Receiver<String>)>,
     queue_in: mpsc::Sender<String>,
     queue_out: mpsc::Receiver<String>,
 }
-
 
 impl ModelManager {
     pub fn new() -> Self {
@@ -24,9 +23,9 @@ impl ModelManager {
     }
     pub async fn create_model(&mut self) -> Result<(), Error> {
         // requeset channel
-        let (request_s,request_r) = tokio::sync::mpsc::channel::<String>(256);
+        let (request_s, request_r) = tokio::sync::mpsc::channel::<String>(256);
         // result channel
-        let (result_s,result_r) = tokio::sync::mpsc::channel::<String>(256);
+        let (result_s, result_r) = tokio::sync::mpsc::channel::<String>(256);
         let model_runner = ModelRunner {
             ioopt: IoOption {
                 stdout: Some("stdout.fifo".to_string()),
@@ -39,13 +38,16 @@ impl ModelManager {
             result_sender: Arc::new(result_s),
             child: None,
         };
-        self.model_runners.push((model_runner,request_s,result_r));
+        self.model_runners.push((model_runner, request_s, result_r));
         Ok(())
     }
     pub async fn start(&mut self) -> Result<(), Error> {
         // choose a model runner from model_runners
         if self.model_runners.is_empty() {
-            return Err(Error::new(std::io::ErrorKind::Other, "No model runners available"));
+            return Err(Error::new(
+                std::io::ErrorKind::Other,
+                "No model runners available",
+            ));
         }
         let mut model_pack = self.model_runners.remove(0);
         model_pack.0.run_model_with_fifo().await?;
@@ -55,7 +57,10 @@ impl ModelManager {
     }
 
     pub async fn enqueue_request(&self, request: String) {
-        self.queue_in.send(request).await.expect("Failed to send request");
+        self.queue_in
+            .send(request)
+            .await
+            .expect("Failed to send request");
     }
 
     async fn process_requests(&mut self) {
@@ -64,29 +69,33 @@ impl ModelManager {
         }
     }
 
-    async fn handle_request(&mut self, request: String) -> Result<String,Error> {
+    async fn handle_request(&mut self, request: String) -> Result<String, Error> {
         // choose a model runner from model_runners
         if self.model_runners.is_empty() {
-            return Err(Error::new(std::io::ErrorKind::Other, "No model runners available"));
+            return Err(Error::new(
+                std::io::ErrorKind::Other,
+                "No model runners available",
+            ));
         }
         // clear the model_runner.2 inner data
-        for (_,_,r) in self.model_runners.iter_mut() {
-            while let Ok(_) = r.try_recv(){}
+        for (_, _, r) in self.model_runners.iter_mut() {
+            while let Ok(_) = r.try_recv() {}
         }
 
         let mut model_runner = self.model_runners.remove(0);
         model_runner.1.send(request).await.unwrap();
-        
-        if let Some(r) = model_runner.2.recv().await{
+
+        if let Some(r) = model_runner.2.recv().await {
             self.model_runners.push(model_runner);
             return Ok(r);
         }
         self.model_runners.push(model_runner);
-        return Err(Error::new(std::io::ErrorKind::Other, "No model runners available"));
+        return Err(Error::new(
+            std::io::ErrorKind::Other,
+            "No model runners available",
+        ));
     }
 }
-
-
 
 #[cfg(test)]
 mod tests {
@@ -104,11 +113,12 @@ mod tests {
         println!("Model manager started.");
         tokio::time::sleep(Duration::from_secs(10)).await;
         println!("Start request--------------");
-        let r= manager.handle_request("Hello! who are you".to_string()).await;
-        if let Ok(r) = r{
-            println!("Model manager handled request: {}",r);
+        let r = manager
+            .handle_request("Hello! who are you".to_string())
+            .await;
+        if let Ok(r) = r {
+            println!("Model manager handled request: {}", r);
         }
         tokio::time::sleep(Duration::from_secs(20)).await;
-
     }
 }

@@ -3,14 +3,16 @@ addr = "unix:///tmp/ttrpc-test"
 
 
 [speech_to_text]
-model_path= ""
+model_path= "https://api.siliconflow.cn/v1/audio/transcriptions"
+api_key = ""
+model_name = "FunAudioLLM/SenseVoiceSmall"
 
 [dialogue_model]
-model_name= "ep-20250205152535-z4rzh"
+model_name= "deepseek-ai/DeepSeek-R1-Distill-Llama-8B"
 api_key= ""
 stream = true
 prompt_path= ""
-model_path="https://ark.cn-beijing.volces.com/api/v3/chat/completions"
+model_path="https://api.siliconflow.cn/v1/chat/completions"
 
 [text_to_speech]
 model_path= ""

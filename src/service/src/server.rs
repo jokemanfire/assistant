@@ -5,9 +5,17 @@ use std::sync::Arc;
 use ttrpc::r#async::Server;
 
 use crate::config::Config;
-use crate::dialogue_model;
+use crate::dialogue_model::DialogueModel;
 
-struct ModelS;
+struct ModelS {
+    chat_model: DialogueModel,
+}
+
+#[async_trait]
+pub trait ModelDeal<S, R> {
+    async fn get_response_online(&self, inputdata: S) -> Result<R, Box<dyn std::error::Error>>;
+    async fn get_response_offline(&self, inputdata: S) -> Result<R, Box<dyn std::error::Error>>;
+}
 
 #[async_trait]
 impl model_ttrpc::ModelService for ModelS {
@@ -18,8 +26,7 @@ impl model_ttrpc::ModelService for ModelS {
     ) -> ::ttrpc::Result<model::TextResponse> {
         let mut res = model::TextResponse::default();
         let text_data = req.text;
-        let r = dialogue_model::generate_response(&text_data).await;
-        // println!("input: {}", res.text);
+        let r = self.chat_model.get_response_online(text_data).await;
         if let Ok(r) = r {
             res.text = r;
         }
@@ -60,7 +67,9 @@ pub async fn start_server() -> Result<Server, Box<dyn Error>> {
     let addr = sconfig.server.addr.unwrap();
     remove_if_sock_exist(addr.as_str())?;
 
-    let model_service = model_ttrpc::create_model_service(Arc::new(ModelS {}));
+    let model_service = model_ttrpc::create_model_service(Arc::new(ModelS {
+        chat_model: DialogueModel { config: sconfig.dialogue_model.clone()},
+    }));
     println!("Starting ttrpc server on {}", addr);
     let mut server = Server::new()
         .bind(addr.as_str())

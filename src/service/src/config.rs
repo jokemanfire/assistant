@@ -15,6 +15,8 @@ pub struct ServerConfig {
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct SpeechToTextConfig {
     pub model_path: Option<String>,
+    pub model_name: Option<String>,
+    pub api_key: Option<String>,
 }
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct DialogueModelConfig {
