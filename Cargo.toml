@@ -1,6 +1,6 @@
 [workspace]
-members = ["src/client", "src/service","src/protos"]
-# members = ["src/protos"]
+members = [ "src/service","src/protos","src/client/api","src/client/web","src/client/cli","src/client/gui"]
+
 [workspace.dependencies]
 reqwest = { version = "0.12", features = ["json"] }
 cpal = "0.15"

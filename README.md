@@ -1,53 +1,86 @@
-# Real-Time Voice Assistant
+# Assistant
 
 ## Project Overview
 
-This project implements a real-time voice assistant that seamlessly captures voice data through a microphone, converts it into text, processes the text using a dialogue model to generate a response, and finally converts the response text back into voice for playback.
+This project implements a C-S AI assistant , support offline and online AI implement.
 
 ## Design
 ![design](https://github.com/jokemanfire/assistant/blob/main/design.png)
 
-### Main Functional Modules
 
-#### 1. Speech to Text
-This module is responsible for capturing audio data from the microphone and sending it to a speech-to-text API to convert the audio into text. It leverages powerful libraries such as `cpal` to access the microphone device and `reqwest` to interact with the API smoothly.
+## Usage
 
-- **Microphone Access**: `cpal` provides a cross-platform way to access audio input devices, allowing the application to capture audio data from the microphone in real-time.
-- **API Interaction**: `reqwest` is used to send HTTP requests to the speech-to-text API, ensuring reliable communication and efficient data transfer.
+### 1. Service
 
-#### 2. Dialogue Model
-The dialogue model utilizes `wasmedge` to run the `ggml llama` model. It takes the converted text from the speech-to-text module as input, processes it through the model, and generates a meaningful response.
+The service module handles the core functionality of the voice assistant. To run the service, follow these steps:
 
-- **Model Execution**: `wasmedge` enables the efficient execution of the `ggml llama` model, providing high-performance inference capabilities.
-- **Text Processing**: The model analyzes the input text, understands the user's intent, and generates an appropriate response based on its training.
+#### 1.1. Install Dependencies
 
-#### 3. Text to Speech
-This module takes the response from the dialogue model and sends it to a text-to-speech API to convert the text into audio data.
+Make sure you have Rust and Cargo installed. Then, navigate to the project root and run:
 
-- **API Integration**: Similar to the speech-to-text module, `reqwest` is used to interact with the text-to-speech API, sending the response text and receiving the corresponding audio data.
-
-#### 4. Audio Playback
-The main program initiates an audio stream from the microphone, captures the audio data, and sends it to the speech-to-text API. Then, the converted text is sent to the dialogue model API, the response is obtained, and the response text is converted back into voice and played.
-
-- **Audio Streaming**: The application continuously captures audio data from the microphone in real-time, ensuring a seamless user experience.
-- **Playback Library**: Depending on the audio playback library chosen, the audio data is played back to the user, providing an immersive voice interaction experience.
-
-## Running the Project
-
-### Prerequisites
-- Ensure all dependencies are installed. The project relies on several libraries, including `cpal`, `reqwest`, `serde_json`, `tokio`, `rodio`, `ttrpc`, `prost-build`, and `ttrpc-codegen`. You can install them using `cargo` by running `cargo build` in the project directory.
-- Replace the API keys with your actual keys. The project uses API keys to access the speech-to-text and text-to-speech APIs. You can obtain these keys from the respective API providers and replace the placeholder keys in the code.
-
-### Steps
-1. Clone the project repository to your local machine.
-2. Navigate to the project directory.
-3. Replace the API keys in the code with your actual keys.
-4. Run the following command to start the application:
-```sh
-cargo run
+``` sh
+cargo run --bin service
 ```
 
+#### 1.2. Configure API Key
+
+In the `src/service/Cargo.toml` file, locate the line where the API key is set and replace `<your_api_key>` with your actual API key.
+
+#### 1.3. Run the Service
+
+To start the service, run the following command from the project root:
+
+
+### 2. Client
+
+The client module provides multiple binaries for different use cases. Below are instructions for each client type.
+
+#### 2.1. Web Client
+
+The web client provides a simple HTML interface for user interaction.
+
+##### 2.1.1. Run the Web Client
+
+To start the web client, run:
+``` sh
+cargo run --bin web
+``` 
+You can then access the web interface at `http://127.0.0.1:3030/config`.
+
+#### 2.2. CLI Client
+
+The command-line interface client allows you to interact with the service via the terminal.
+
+##### 2.2.1. Run the CLI Client
+
+To start the CLI client, run:
+``` sh
+cargo run --bin cli
+```
+Follow the prompts to input your audio data and receive responses.
+
+#### 2.3. GUI Client (if applicable)
+
+If you have a GUI client implemented, you can run it similarly:
+``` sh
+cargo run --bin gui
+``` 
+
+
+### 3. Protos
+
+The `protos` directory contains Protocol Buffers definitions used for communication between the service and clients. Ensure that you compile the proto files if you make any changes.
+
 ## Notes
-- **Microphone Availability**: Make sure there is an available microphone device on your system. If the microphone is not detected or not working properly, the speech-to-text module will not be able to capture audio data.
-- **Audio Data Processing**: Adjust the audio data processing logic according to the actual situation, especially the buffering and chunk processing parts. Different microphones and audio devices may have different sample rates and formats, so you may need to adjust the code accordingly.
-- **Audio Playback Implementation**: The specific implementation of playing audio needs to be adjusted according to the audio playback library you choose. The project currently uses `rodio` for audio playback, but you can choose other libraries based on your requirements.
+
+- Ensure that your system has a working microphone. If the microphone is not detected or not functioning properly, the voice-to-text module will not be able to capture audio data.
+- Adjust the audio data processing logic as needed, especially for buffering and chunking. Different microphones and audio devices may have varying sample rates and formats, so you may need to adjust the code accordingly.
+- The audio playback implementation may need to be adjusted based on the audio playback library you choose. The current project uses `rodio` for audio playback, but you can select other libraries as needed.
+
+## Contributing
+
+Contributions are welcome! Please submit issues or pull requests.
+
+## License
+
+This project is licensed under the MIT License. See the LICENSE file for more details.

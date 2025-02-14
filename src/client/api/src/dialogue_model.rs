@@ -8,7 +8,7 @@ use ttrpc::{
 const DIALOGUE_MODEL_API_URL: &str = "unix:///tmp/ttrpc-test";
 
 fn default_ctx() -> Context {
-    let mut ctx = context::with_duration(Duration::from_secs(20));
+    let mut ctx = context::with_duration(Duration::from_secs(300));
     ctx.add("key-1".to_string(), "value-1-1".to_string());
     ctx.add("key-1".to_string(), "value-1-2".to_string());
     ctx.set("key-2".to_string(), vec!["value-2".to_string()]);
@@ -28,7 +28,7 @@ pub async fn dialogue_model(input_text: String) -> Result<String, Box<dyn Error>
     // tokio::time::sleep(Duration::from_secs(3)).await;
     let output = ttrpc_client.text_chat(default_ctx(), &req).await?;
     // let test = "test";
-    println!("output: {}", output.text);
+    // println!("output: {}", output.text);
     Ok(output.text)
     // Ok(test.to_string())
 }

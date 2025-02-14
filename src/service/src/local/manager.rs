@@ -1,4 +1,4 @@
-use crate::runmodel::IoOption;
+use super::runmodel::IoOption;
 use crate::ModelRunner;
 use std::io::Error;
 use std::sync::Arc;

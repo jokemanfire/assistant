@@ -1,6 +1,5 @@
 use std::{error::Error, io};
-pub mod api;
-pub mod ui;
+
 
 fn read_input() -> String {
     loop {
@@ -21,9 +20,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         println!("USER:");
         let input = read_input();
         let r = api::dialogue_model::dialogue_model(input).await;
-        // println!("{:?}", r);
+        println!("AI: {:?}", r.unwrap_or_default());
         // tokio::time::sleep(Duration::from_secs(1)).await;
     }
-
     Ok(())
 }

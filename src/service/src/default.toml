@@ -8,11 +8,12 @@ api_key = ""
 model_name = "FunAudioLLM/SenseVoiceSmall"
 
 [dialogue_model]
-model_name= "deepseek-ai/DeepSeek-R1-Distill-Llama-8B"
+model_path="https://api.siliconflow.cn/v1/chat/completions"
 api_key= ""
+model_name= "Qwen/Qwen2.5-7B-Instruct"
 stream = true
 prompt_path= ""
-model_path="https://api.siliconflow.cn/v1/chat/completions"
+
 
 [text_to_speech]
 model_path= ""

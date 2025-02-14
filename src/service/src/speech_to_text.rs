@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use reqwest::Client;
 use serde_json::{json, Value};
+use reqwest::multipart;
 
 use crate::{config::SpeechToTextConfig, server::ModelDeal};
 
@@ -11,6 +12,10 @@ pub struct SpeechModel{
 #[async_trait]
 impl ModelDeal<Vec<u8>, String> for SpeechModel {
     async fn get_response_online(&self, data: Vec<u8>) -> Result<String, Box<dyn std::error::Error>> {
+        let form = reqwest::multipart::Form::new()
+        .part("file", reqwest::multipart::Part::bytes(data).file_name("test.wav").mime_str("audio/wav").unwrap())
+        .text("model", self.config.model_name.clone().unwrap());
+
         let response = Client::new()
             .post(self.config.model_path.clone().unwrap())
             .header("Content-Type", "multipart/form-data")
@@ -18,7 +23,7 @@ impl ModelDeal<Vec<u8>, String> for SpeechModel {
                 "Authorization",
                 format!("Bearer {}", self.config.api_key.clone().unwrap()),
             )
-            .body(data)
+            .multipart(form)
             .send()
             .await?;
         
@@ -45,8 +50,9 @@ mod tests {
         let dmod = SpeechModel{
             config:config.speech_to_text,
         };
-        let payload = "-----011000010111000001101001\r\nContent-Disposition: form-data; name=\"file\"\r\n\r\n{}\r\n-----011000010111000001101001\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nFunAudioLLM/SenseVoiceSmall\r\n-----011000010111000001101001--\r\n\r\n";
-        let r = dmod.get_response_online(payload.as_bytes().to_vec()).await;
+        let audio_file_path = "/home/10346053@zte.intra/hdy/github/assistant/test/demo.wav"; 
+        let audio_data = std::fs::read(audio_file_path).expect("Failed to read audio file");
+        let r = dmod.get_response_online(audio_data).await;
         println!("{:?}",r);
         assert!(r.is_ok());
     }

@@ -1,10 +1,9 @@
-use crate::runmodel::{IoOption, ModelRunner};
+use local::runmodel::{IoOption, ModelRunner};
 use std::{error::Error, process::exit};
 use tokio::signal::unix::signal;
 pub mod config;
 pub mod dialogue_model;
-pub mod manager;
-pub mod runmodel;
+pub mod local;
 pub mod server;
 pub mod speech_to_text;
 

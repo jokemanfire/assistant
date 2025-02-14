@@ -26,6 +26,7 @@ impl model_ttrpc::ModelService for ModelS {
     ) -> ::ttrpc::Result<model::TextResponse> {
         let mut res = model::TextResponse::default();
         let text_data = req.text;
+        println!("Recive text request {:?}", text_data);
         let r = self.chat_model.get_response_online(text_data).await;
         if let Ok(r) = r {
             res.text = r;
