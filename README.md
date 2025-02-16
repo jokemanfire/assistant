@@ -2,10 +2,33 @@
 
 ## Project Overview
 
-This project implements a C-S AI assistant , support offline and online AI implement.
+This project implements a C-S AI assistant. 
+1.support offline and online AI implement. 
+2.support multiple clients.
+3.support multiple models.
+4.support multiple services.
+
+## Todo
+
+client:
+- [ ] Add a GUI client
+- [ ] Add a web client
+- [ ] Add a CLI client
+
+service:
+- [ ] Add Stream support
+- [ ] Add Prompt support
+- [ ] Add Model support
+- [ ] Add Service support
+
 
 ## Design
-![design](https://github.com/jokemanfire/assistant/blob/main/design.png)
+service(Outdated):
+![design](images/design.png)
+Local Model:
+Use wasm to implement the local model. For example, the local model can be a llama3.1 model. Or These models which can quantization by ggml.
+
+
 
 
 ## Usage
@@ -24,12 +47,23 @@ cargo run --bin service
 
 #### 1.2. Configure API Key
 
-In the `src/service/Cargo.toml` file, locate the line where the API key is set and replace `<your_api_key>` with your actual API key.
+In the `src/service/src/default.toml` file, locate the line where the API key is set and replace `<your_api_key>` with your actual API key.
 
 #### 1.3. Run the Service
 
 To start the service, run the following command from the project root:
+#### 1.4. Choose the model
 
+You can choose the model in the `src/service/src/default.toml` file.
+
+``` toml
+[dialogue_model]
+model_path="https://api.siliconflow.cn/v1/chat/completions"
+api_key= ""
+model_name= "Qwen/Qwen2.5-7B-Instruct"
+stream = true
+prompt_path= ""
+```
 
 ### 2. Client
 
@@ -46,6 +80,10 @@ To start the web client, run:
 cargo run --bin web
 ``` 
 You can then access the web interface at `http://127.0.0.1:3030/config`.
+
+example:
+![index](images/index.png)
+![chat](images/chat.png)
 
 #### 2.2. CLI Client
 

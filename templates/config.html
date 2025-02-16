@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>AI 对话系统 - 配置</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            width: 100%;
+            padding: 40px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.15);
+            backdrop-filter: blur(4px);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+
+        .config-section {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            color: #2c3e50;
+            font-size: 1.1em;
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus {
+            border-color: #3498db;
+            outline: none;
+        }
+
+        .button {
+            padding: 15px 40px;
+            border-radius: 30px;
+            border: none;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            font-weight: 500;
+            display: inline-block;
+        }
+
+        .primary-button {
+            background: #3498db;
+            color: white;
+        }
+
+        .primary-button:hover {
+            background: #2980b9;
+            transform: scale(1.05);
+        }
+
+        .button-group {
+            text-align: center;
+            margin-top: 30px;
+        }
+
+        .nav-links {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .nav-links a {
+            color: #7f8c8d;
+            text-decoration: none;
+            margin: 0 10px;
+            transition: color 0.3s ease;
+        }
+
+        .nav-links a:hover {
+            color: #2c3e50;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            color: #7f8c8d;
+            font-size: 0.9em;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 2em;
+            }
+
+            .config-section {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>系统配置</h1>
+        </div>
+
+        <div class="config-section">
+            <div class="form-group">
+                <label for="model">AI 模型选择</label>
+                <input type="text" id="model" value="FunAudioLLM/SenseVoiceSmall" 
+                       placeholder="请输入模型名称">
+            </div>
+            
+            <div class="form-group">
+                <label for="temperature">响应温度</label>
+                <input type="number" id="temperature" value="0.7" min="0" max="2" step="0.1"
+                       placeholder="设置响应的随机性 (0-2)">
+            </div>
+        </div>
+
+        <div class="button-group">
+            <button onclick="startNewChat()" class="button primary-button">开始新对话</button>
+        </div>
+
+        <div class="nav-links">
+            <a href="/">返回首页</a>
+        </div>
+
+        <div class="footer">
+            <p>© 2024 AI 智能对话系统 | 探索 AI 的无限可能</p>
+        </div>
+    </div>
+
+    <script>
+        function startNewChat() {
+            const conversationId = Date.now().toString();
+            window.location.href = `/chat/${conversationId}`;
+        }
+    </script>
+</body>
+</html> 
