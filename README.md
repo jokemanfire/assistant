@@ -103,7 +103,7 @@ If you have a GUI client implemented, you can run it similarly:
 ``` sh
 cargo run --bin gui
 ``` 
-
+![gui](images/UIChat.png)
 
 ### 3. Protos
 
