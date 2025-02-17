@@ -1,6 +1,5 @@
 use std::{error::Error, io};
 
-
 fn read_input() -> String {
     loop {
         let mut answer = String::new();

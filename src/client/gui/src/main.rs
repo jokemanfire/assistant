@@ -2,10 +2,10 @@ use eframe::egui::{FontFamily, FontId, StrokeKind};
 use eframe::{egui, App};
 use egui::{Color32, RichText, ScrollArea, TextStyle};
 use serde::{Deserialize, Serialize};
-use tokio::runtime::Runtime;
 use std::ops::DerefMut;
-use std::time::{SystemTime, UNIX_EPOCH};
 use std::sync::{Arc, Mutex};
+use std::time::{SystemTime, UNIX_EPOCH};
+use tokio::runtime::Runtime;
 
 use api::dialogue_model::dialogue_model;
 
@@ -65,9 +65,9 @@ impl App for ChatApp {
         let mut style = (*ctx.style()).clone();
         style.spacing.item_spacing = egui::vec2(8.0, 8.0);
         style.visuals.window_fill = Color32::from_rgb(255, 255, 255);
-       
+
         ctx.set_style(style);
-        
+
         egui::SidePanel::left("conversations_panel")
             .default_width(200.0)
             .show(ctx, |ui| {
@@ -76,14 +76,17 @@ impl App for ChatApp {
                 ui.separator();
                 ui.add_space(8.0);
 
-                if ui.add_sized(
-                    [ui.available_width(), 32.0],
-                    egui::Button::new(
-                        RichText::new("+ Create Chat")
-                            .color(Color32::from_rgb(57, 197, 187))
-                            .size(16.0)
+                if ui
+                    .add_sized(
+                        [ui.available_width(), 32.0],
+                        egui::Button::new(
+                            RichText::new("+ Create Chat")
+                                .color(Color32::from_rgb(57, 197, 187))
+                                .size(16.0),
+                        ),
                     )
-                ).clicked() {
+                    .clicked()
+                {
                     let new_conversation = Conversation {
                         id: SystemTime::now()
                             .duration_since(UNIX_EPOCH)
@@ -105,18 +108,16 @@ impl App for ChatApp {
                         let is_current = conversation.id == self.current_conversation_id;
                         let text = if is_current {
                             RichText::new(format!("💬 chat {}", &conversation.id[..8]))
-                            .color(Color32::from_rgb(57, 197, 187))
-                            .size(14.0)
+                                .color(Color32::from_rgb(57, 197, 187))
+                                .size(14.0)
                         } else {
                             RichText::new(format!("💬 chat {}", &conversation.id[..8]))
-                            .color(Color32::GRAY)
-                            .size(14.0)
+                                .color(Color32::GRAY)
+                                .size(14.0)
                         };
 
-                        let response = ui.add_sized(
-                            [ui.available_width(), 32.0],
-                            egui::Button::new(text)
-                        );
+                        let response =
+                            ui.add_sized([ui.available_width(), 32.0], egui::Button::new(text));
 
                         if response.clicked() {
                             self.current_conversation_id = conversation.id.clone();
@@ -134,8 +135,6 @@ impl App for ChatApp {
             ui.add_space(8.0);
             ui.separator();
             ui.add_space(16.0);
-
-         
 
             // 消息显示区域
             let available_height = ui.available_height() - 120.0;
@@ -162,7 +161,7 @@ impl App for ChatApp {
 
                             ui.with_layout(layout, |ui| {
                                 let max_width = ui.available_width() * 0.8;
-                                
+
                                 // 先创建文本标签但不立即显示
                                 let text = if is_user {
                                     RichText::new(format!("{}  👤", message.content))
@@ -170,7 +169,11 @@ impl App for ChatApp {
                                         .size(15.0)
                                 } else {
                                     RichText::new(format!("AI\n  {}", message.content))
-                                        .color(if is_user { Color32::WHITE } else { Color32::BLACK })
+                                        .color(if is_user {
+                                            Color32::WHITE
+                                        } else {
+                                            Color32::BLACK
+                                        })
                                         .size(15.0)
                                 };
 
@@ -182,7 +185,7 @@ impl App for ChatApp {
 
                                 let (rect, _) = ui.allocate_exact_size(
                                     egui::vec2(max_width, galley.size().y + 16.0),
-                                    egui::Sense::hover()
+                                    egui::Sense::hover(),
                                 );
 
                                 // 先绘制背景
@@ -192,7 +195,7 @@ impl App for ChatApp {
                                 } else {
                                     Color32::from_rgb(240, 240, 240)
                                 };
-                                
+
                                 ui.painter().rect(
                                     bg_rect,
                                     10.0,
@@ -217,56 +220,60 @@ impl App for ChatApp {
             ui.add_space(8.0);
             // 输入区域
             egui::TopBottomPanel::bottom("input_panel")
-            .min_height(100.0)
-            .show_inside(ui, |ui| {
-                ui.add_space(10.0);
-                
-                // 输入区域
-                ui.horizontal(|ui| {
-                    let input_text_edit = egui::TextEdit::multiline(&mut self.input_text)
-                        .desired_rows(3)
-                        .desired_width(ui.available_width() - 100.0)
-                        .hint_text("Input message...")
-                        .font(egui::TextStyle::Body);
-                    
-                    let response = ui.add(input_text_edit);
+                .min_height(100.0)
+                .show_inside(ui, |ui| {
+                    ui.add_space(10.0);
 
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
-                        let send_button = egui::Button::new(
-                            RichText::new("send")
-                                .size(16.0)
-                                .color(if !*self.is_sending.lock().unwrap() {
-                                    Color32::BLACK
-                                } else {
-                                    Color32::GRAY
-                                })
-                        )
-                        .min_size(egui::vec2(80.0, 30.0))
-                        .fill(if !*self.is_sending.lock().unwrap() {
-                            Color32::LIGHT_GRAY
-                        } else {
-                            Color32::from_rgb(57, 197, 187)
-                        });
-
-                        if ui.add_enabled(!*self.is_sending.lock().unwrap(), send_button).clicked() 
-                            || (response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)))
-                        {
-                            if !self.input_text.is_empty() {
-                                self.send_message();
-                            }
-                        }
-                    });
-                });
-
-                if *self.is_sending.lock().unwrap().deref_mut() {
+                    // 输入区域
                     ui.horizontal(|ui| {
-                        ui.add_space(10.0);
-                        ui.label("Sending...");
+                        let input_text_edit = egui::TextEdit::multiline(&mut self.input_text)
+                            .desired_rows(3)
+                            .desired_width(ui.available_width() - 100.0)
+                            .hint_text("Input message...")
+                            .font(egui::TextStyle::Body);
+
+                        let response = ui.add(input_text_edit);
+
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
+                            let send_button =
+                                egui::Button::new(RichText::new("send").size(16.0).color(
+                                    if !*self.is_sending.lock().unwrap() {
+                                        Color32::BLACK
+                                    } else {
+                                        Color32::GRAY
+                                    },
+                                ))
+                                .min_size(egui::vec2(80.0, 30.0))
+                                .fill(
+                                    if !*self.is_sending.lock().unwrap() {
+                                        Color32::LIGHT_GRAY
+                                    } else {
+                                        Color32::from_rgb(57, 197, 187)
+                                    },
+                                );
+
+                            if ui
+                                .add_enabled(!*self.is_sending.lock().unwrap(), send_button)
+                                .clicked()
+                                || (response.lost_focus()
+                                    && ui.input(|i| i.key_pressed(egui::Key::Enter)))
+                            {
+                                if !self.input_text.is_empty() {
+                                    self.send_message();
+                                }
+                            }
+                        });
                     });
-                }
-                
-               ui.add_space(8.0);
-            }); 
+
+                    if *self.is_sending.lock().unwrap().deref_mut() {
+                        ui.horizontal(|ui| {
+                            ui.add_space(10.0);
+                            ui.label("Sending...");
+                        });
+                    }
+
+                    ui.add_space(8.0);
+                });
         });
 
         ctx.request_repaint();
@@ -275,8 +282,10 @@ impl App for ChatApp {
 
 impl ChatApp {
     fn send_message(&mut self) {
-        if let Some(conversation) = self.conversations
-            .lock().unwrap()
+        if let Some(conversation) = self
+            .conversations
+            .lock()
+            .unwrap()
             .iter_mut()
             .find(|c| c.id == self.current_conversation_id)
         {
@@ -288,7 +297,7 @@ impl ChatApp {
                     .unwrap()
                     .as_secs() as i64,
             };
-            
+
             conversation.messages.push(user_message);
 
             // 创建用于发送的消息
@@ -305,9 +314,8 @@ impl ChatApp {
                 match dialogue_model(message_to_send).await {
                     Ok(response) => {
                         let mut conversations = conversations.lock().unwrap();
-                        if let Some(conversation) = conversations
-                            .iter_mut()
-                            .find(|c| c.id == conversation_id)
+                        if let Some(conversation) =
+                            conversations.iter_mut().find(|c| c.id == conversation_id)
                         {
                             conversation.messages.push(Message {
                                 role: "assistant".to_string(),

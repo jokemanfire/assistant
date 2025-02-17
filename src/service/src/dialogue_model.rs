@@ -5,7 +5,7 @@ use reqwest::Client;
 use serde_json::{json, Value};
 
 pub struct DialogueModel {
-    pub config:DialogueModelConfig,
+    pub config: DialogueModelConfig,
 }
 
 #[async_trait]
@@ -70,11 +70,11 @@ mod tests {
     #[tokio::test]
     async fn test_generate_response() {
         let config = Config::new();
-        let dmod = DialogueModel{
-            config:config.dialogue_model,
+        let dmod = DialogueModel {
+            config: config.dialogue_model,
         };
         let r = dmod.get_response_online("Hello".to_string()).await;
-        println!("{:?}",r);
+        println!("{:?}", r);
         assert!(r.is_ok());
     }
 }
