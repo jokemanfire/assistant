@@ -1,6 +1,6 @@
 [server]
-addr = "unix:///tmp/ttrpc-test"
-
+ttrpc_addr = "unix:///tmp/ttrpc-test"
+grpc_addr = "0.0.0.0:50051"
 
 [speech_to_text]
 model_path= "https://api.siliconflow.cn/v1/audio/transcriptions"

@@ -17,20 +17,15 @@ fn default_ctx() -> Context {
 }
 
 pub async fn dialogue_model(input_text: String) -> Result<String, Box<dyn Error>> {
-    let client = Client::connect(DIALOGUE_MODEL_API_URL).unwrap();
-    // tokio::time::sleep(Duration::from_secs(1)).await;
-
+    let client = Client::connect(DIALOGUE_MODEL_API_URL)?;
     let ttrpc_client = model_ttrpc::ModelServiceClient::new(client);
     let req = model::TextRequest {
         text: input_text.to_string(),
         ..Default::default()
     };
-    // tokio::time::sleep(Duration::from_secs(3)).await;
+
     let output = ttrpc_client.text_chat(default_ctx(), &req).await?;
-    // let test = "test";
-    // println!("output: {}", output.text);
     Ok(output.text)
-    // Ok(test.to_string())
 }
 #[cfg(test)]
 mod tests {

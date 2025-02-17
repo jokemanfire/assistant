@@ -10,7 +10,8 @@ pub struct Config {
 }
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct ServerConfig {
-    pub addr: Option<String>,
+    pub ttrpc_addr: Option<String>,
+    pub grpc_addr: Option<String>,
 }
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct SpeechToTextConfig {

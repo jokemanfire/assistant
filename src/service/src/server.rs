@@ -1,11 +1,12 @@
+use crate::config::Config;
+use crate::dialogue_model::DialogueModel;
 use async_trait::async_trait;
+use log::info;
 use protos::{model, model_ttrpc};
 use std::error::Error;
 use std::sync::Arc;
+use tonic::transport::Server as tonicServer;
 use ttrpc::r#async::Server;
-
-use crate::config::Config;
-use crate::dialogue_model::DialogueModel;
 
 struct ModelS {
     chat_model: DialogueModel,
@@ -15,8 +16,9 @@ struct ModelS {
 pub trait ModelDeal<S, R> {
     async fn get_response_online(&self, inputdata: S) -> Result<R, Box<dyn std::error::Error>>;
     async fn get_response_offline(&self, inputdata: S) -> Result<R, Box<dyn std::error::Error>>;
+    // TODO Add Stream Response
 }
-
+#[async_trait]
 #[async_trait]
 impl model_ttrpc::ModelService for ModelS {
     async fn text_chat(
@@ -26,7 +28,7 @@ impl model_ttrpc::ModelService for ModelS {
     ) -> ::ttrpc::Result<model::TextResponse> {
         let mut res = model::TextResponse::default();
         let text_data = req.text;
-        println!("Recive text request {:?}", text_data);
+        info!("Recive text request {:?}", text_data);
         let r = self.chat_model.get_response_online(text_data).await;
         if let Ok(r) = r {
             res.text = r;
@@ -65,20 +67,32 @@ pub fn remove_if_sock_exist(sock_addr: &str) -> Result<(), Box<dyn Error>> {
 
 pub async fn start_server() -> Result<Server, Box<dyn Error>> {
     let sconfig = Config::new();
-    let addr = sconfig.server.addr.unwrap();
+    let addr = sconfig.server.ttrpc_addr.unwrap();
     remove_if_sock_exist(addr.as_str())?;
 
     let model_service = model_ttrpc::create_model_service(Arc::new(ModelS {
-        chat_model: DialogueModel { config: sconfig.dialogue_model.clone()},
+        chat_model: DialogueModel {
+            config: sconfig.dialogue_model.clone(),
+        },
     }));
-    println!("Starting ttrpc server on {}", addr);
+    info!("Starting ttrpc server on {}", addr);
     let mut server = Server::new()
         .bind(addr.as_str())
         .unwrap()
         .register_service(model_service);
 
-    server.start().await.unwrap();
+    server.start().await?;
     Ok(server)
+}
+
+pub async fn start_grpc_server() -> Result<(), Box<dyn Error>> {
+    let sconfig = Config::new();
+    let addr = sconfig.server.grpc_addr.unwrap();
+    // tonicServer::builder()
+    //     .add_service()
+    //     .serve(addr.parse()?)
+    //     .await?;
+    Ok(())
 }
 
 #[cfg(test)]
