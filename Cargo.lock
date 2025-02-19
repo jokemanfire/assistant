@@ -5626,6 +5626,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "wasme-ggml"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+ "wasmedge-wasi-nn",
+]
+
+[[package]]
 name = "wasmedge-macro"
 version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5691,6 +5699,15 @@ checksum = "7c8bfc548253718d2013a8fa9cc9ccc00241e6216f36ee071fa8d7efe2b46c5f"
 dependencies = [
  "thiserror 1.0.69",
  "wat",
+]
+
+[[package]]
+name = "wasmedge-wasi-nn"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4c88608757402e38784c8fb8644a1c8e5bff10844163f3cf0314c1c7d42336cc"
+dependencies = [
+ "thiserror 1.0.69",
 ]
 
 [[package]]
