@@ -62,8 +62,6 @@ impl ModelDeal<String, String> for DialogueModel {
 #[cfg(test)]
 
 mod tests {
-    use crate::dialogue_model;
-
     use super::*;
     use tokio;
 

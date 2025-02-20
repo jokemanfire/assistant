@@ -35,8 +35,9 @@ impl WasmModelRunner {
             // 从stdout读取响应
             let stdout = process.stdout.as_mut().ok_or("Failed to get stdout")?;
             let mut reader = BufReader::new(stdout);
+            // Read unitl \0
             let mut response = Vec::new();
-            reader.read_to_end(&mut response)?;
+            reader.read_until(b'\0', &mut response)?;
 
             Ok(String::from_utf8(response)?)
         } else {
@@ -93,7 +94,7 @@ mod tests {
         runner.run().unwrap();
         
         let request = ModelRequest {
-            prompt: "测试输入".to_string(),
+            prompt: "你好".to_string(),
             parameters: None,
             request_id: "test-1".to_string(),
         };

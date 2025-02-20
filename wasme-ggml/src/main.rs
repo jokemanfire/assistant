@@ -82,7 +82,7 @@ fn main() {
     // Create graph and initialize context.
     let graph = GraphBuilder::new(GraphEncoding::Ggml, ExecutionTarget::AUTO)
         .config(serde_json::to_string(&options).expect("Failed to serialize options"))
-        .build_from_files([model_name])
+        .build_from_cache(model_name)
         .expect("Failed to build graph");
     let mut context = graph
         .init_execution_context()
@@ -153,7 +153,7 @@ fn main() {
 
         // Retrieve the output.
         let mut output = get_output_from_context(&context);
-        println!("ASSISTANT:\n{}\0", output.trim());
+        println!("{}\0", output.trim());
 
         // Update the saved prompt.
         if reset_prompt {

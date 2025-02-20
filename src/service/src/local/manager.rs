@@ -5,9 +5,9 @@ use std::sync::Arc;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::{mpsc, Mutex};
 use tokio::time::{timeout, Duration};
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 
-// 请求结构体
+
 #[derive(Clone,Debug, Serialize, Deserialize)]
 pub struct ModelRequest {
     pub prompt: String,
@@ -15,7 +15,6 @@ pub struct ModelRequest {
     pub request_id: String,
 }
 
-// 模型参数
 #[derive(Clone,Debug, Serialize, Deserialize)]
 pub struct ModelParameters {
     pub temperature: Option<f32>,
@@ -23,7 +22,7 @@ pub struct ModelParameters {
     pub max_tokens: Option<u32>,
 }
 
-// 响应结构体
+
 #[derive(Clone,Debug, Serialize, Deserialize)]
 pub struct ModelResponse {
     pub text: String,
@@ -84,7 +83,7 @@ impl ModelManager {
             for _ in 0..model_count {
                 self.create_model(&wasm_path).await?;
             }
-            // 启动请求处理循环
+            // start request process
             self.start_request_processor();
         }
         Ok(())
@@ -160,28 +159,27 @@ impl ModelManager {
         });
     }
 
-    // 外部接口: 提交请求并等待响应
+   
     pub async fn submit_request(&self, prompt: String) -> anyhow::Result<ModelResponse> {
         let request_id = uuid::Uuid::new_v4().to_string();
         let (response_tx, mut response_rx) = mpsc::channel(1);
 
-        // 注册响应接收器
+        // register response receiver
         self.response_senders.lock().await.push((request_id.clone(), response_tx));
 
-        // 创建请求
+        // create request
         let request = ModelRequest {
             prompt,
             parameters: None,
             request_id: request_id.clone(),
         };
 
-        // 加入请求队列
+        // add request to queue
         self.request_queue.0.send(request).await?;
 
-        // 等待响应,设置超时
+        // wait response, set timeout
         match timeout(Duration::from_secs(30), response_rx.recv()).await {
             Ok(Some(response)) => {
-                // 清理响应接收器
                 self.response_senders.lock().await.retain(|(id, _)| id != &request_id);
                 Ok(response)
             }

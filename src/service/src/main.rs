@@ -3,10 +3,9 @@ use log::{error, info};
 use std::{error::Error, process::exit};
 use tokio::signal::unix::signal;
 pub mod config;
-pub mod dialogue_model;
 pub mod local;
 pub mod server;
-pub mod speech_to_text;
+pub mod modeldeal;
 
 
 // pub struct Service {

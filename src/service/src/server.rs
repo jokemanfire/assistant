@@ -1,11 +1,10 @@
 use crate::config::Config;
-use crate::dialogue_model::DialogueModel;
+use crate::modeldeal::dialogue_model::DialogueModel;
 use async_trait::async_trait;
 use log::info;
 use protos::{model, model_ttrpc};
 use std::error::Error;
 use std::sync::Arc;
-use tonic::transport::Server as tonicServer;
 use ttrpc::r#async::Server;
 
 struct ModelS {
@@ -85,15 +84,6 @@ pub async fn start_server() -> Result<Server, Box<dyn Error>> {
     Ok(server)
 }
 
-pub async fn start_grpc_server() -> Result<(), Box<dyn Error>> {
-    let sconfig = Config::new();
-    let addr = sconfig.server.grpc_addr.unwrap();
-    // tonicServer::builder()
-    //     .add_service()
-    //     .serve(addr.parse()?)
-    //     .await?;
-    Ok(())
-}
 
 #[cfg(test)]
 mod tests {
