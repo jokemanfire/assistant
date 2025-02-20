@@ -1,10 +1,10 @@
+use crate::local::manager::ModelRequest;
 use anyhow::Result;
 use std::collections::HashMap;
-use std::process::{Child, Command, Stdio};
 use std::io::{BufRead, BufReader, BufWriter, Read, Write};
-use tokio::sync::Mutex;
+use std::process::{Child, Command, Stdio};
 use std::sync::Arc;
-use crate::local::manager::ModelRequest;
+use tokio::sync::Mutex;
 
 pub struct WasmModelRunner {
     dir_mapping: HashMap<String, String>,
@@ -14,7 +14,11 @@ pub struct WasmModelRunner {
 }
 /// todo use sdk
 impl WasmModelRunner {
-    pub fn new(dir_mapping: HashMap<String, String>, wasm_file: String, model_name: String) -> Result<Self> {
+    pub fn new(
+        dir_mapping: HashMap<String, String>,
+        wasm_file: String,
+        model_name: String,
+    ) -> Result<Self> {
         Ok(Self {
             dir_mapping,
             wasm_file,
@@ -23,10 +27,13 @@ impl WasmModelRunner {
         })
     }
 
-    pub async fn deal_request(&self, request: ModelRequest) -> Result<String, Box<dyn std::error::Error>> {
+    pub async fn deal_request(
+        &self,
+        request: ModelRequest,
+    ) -> Result<String, Box<dyn std::error::Error>> {
         if let Some(process) = &self.process {
             let mut process = process.lock().await;
-            
+
             // 获取stdin并写入请求
             let stdin = process.stdin.as_mut().ok_or("Failed to get stdin")?;
             writeln!(stdin, "{}\n", serde_json::to_string(&request)?)?;
@@ -41,7 +48,7 @@ impl WasmModelRunner {
 
             Ok(String::from_utf8(response)?)
         } else {
-            Err("WASM process not started".into())  
+            Err("WASM process not started".into())
         }
     }
 
@@ -49,7 +56,7 @@ impl WasmModelRunner {
         // 启动 wasmedge 进程
         let process = Command::new("wasmedge")
             .arg("--dir")
-            .arg(".")  // 允许访问当前目录
+            .arg(".") // 允许访问当前目录
             .arg("--env")
             .arg("llama3=true")
             .arg("--env")
@@ -57,7 +64,7 @@ impl WasmModelRunner {
             .arg("--nn-preload")
             .arg(format!("default:GGML:AUTO:{}", self.model_name))
             .arg(&self.wasm_file)
-            .arg("default")  // 传递 default 作为参数
+            .arg("default") // 传递 default 作为参数
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -86,13 +93,13 @@ mod tests {
     #[tokio::test]
     async fn test_run() {
         let mut runner = WasmModelRunner::new(
-            HashMap::new(), 
+            HashMap::new(),
             "/home/10346053@zte.intra/hdy/github/assistant/target/wasm32-wasi/release/wasme-ggml.wasm".to_string(),
             "/home/10346053@zte.intra/hdy/wasm/qwen.gguf".to_string()
         ).unwrap();
-        
+
         runner.run().unwrap();
-        
+
         let request = ModelRequest {
             prompt: "你好".to_string(),
             parameters: None,

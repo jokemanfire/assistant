@@ -23,13 +23,37 @@ service:
 
 
 ## Design
-service(Outdated):
+### System Architecture
+The system follows a modular client-server architecture with the following key components:
+
+1. **Service Interface Layer**
+   - Supports multiple protocols (TTRPC, gRPC)
+   - Handles client connections and request routing
+   - Provides unified API interface for different clients
+
+2. **Load Balancer**
+   - Distributes requests across model instances
+   - Manages resource allocation
+   - Ensures high availability and fault tolerance
+
+3. **Model Management System**
+   - **Model Registry**: Manages model registration and lifecycle
+   - **Local Models**: Supports offline model deployment using WASM
+   - **Remote Services**: Integrates with cloud-based AI services
+
+4. **Processing Pipeline**
+   - Speech-to-Text (STT) processing
+   - Dialogue management
+   - Text-to-Speech (TTS) conversion
+
+### Component Interaction
 ![design](images/design.png)
-Local Model:
-Use wasm to implement the local model. For example, the local model can be a llama3.1 model. Or These models which can quantization by ggml.
 
-
-
+### Local Model Implementation
+Use WASM to implement local models, supporting:
+- LLaMA family models
+- Models compatible with GGML quantization
+- Custom model implementations
 
 ## Usage
 

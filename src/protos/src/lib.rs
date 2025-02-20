@@ -1,2 +1,2 @@
-pub mod model;
-pub mod model_ttrpc;
+pub mod grpc;
+pub mod ttrpc;

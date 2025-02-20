@@ -3825,16 +3825,6 @@ dependencies = [
 
 [[package]]
 name = "prost"
-version = "0.12.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "deb1435c188b76130da55f17a466d252ff7b1418b2ad3e037d127b94e3411f29"
-dependencies = [
- "bytes",
- "prost-derive 0.12.6",
-]
-
-[[package]]
-name = "prost"
 version = "0.13.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2796faa41db3ec313a31f7624d9286acf277b52de526150b7e69f3debf891ee5"
@@ -3892,19 +3882,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 1.0.109",
-]
-
-[[package]]
-name = "prost-derive"
-version = "0.12.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "81bddcdb20abf9501610992b6759a4c888aef7d1a7247ef75e2404275ac24af1"
-dependencies = [
- "anyhow",
- "itertools 0.12.1",
- "proc-macro2",
- "quote",
- "syn 2.0.96",
 ]
 
 [[package]]
@@ -4010,7 +3987,11 @@ name = "protos"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "prost 0.13.5",
  "protobuf 3.7.1",
+ "serde",
+ "serde_json",
+ "tonic",
  "tonic-build",
  "ttrpc",
  "ttrpc-codegen",
@@ -4538,7 +4519,7 @@ dependencies = [
  "config",
  "env_logger",
  "log",
- "prost 0.12.6",
+ "prost 0.13.5",
  "protos",
  "reqwest 0.12.12",
  "serde",

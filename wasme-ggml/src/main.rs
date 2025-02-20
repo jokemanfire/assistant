@@ -59,7 +59,9 @@ fn get_data_from_context(context: &GraphExecutionContext, index: usize) -> Strin
         .expect("Failed to get output");
     output_size = std::cmp::min(MAX_OUTPUT_BUFFER_SIZE, output_size);
 
-    return String::from_utf8(output_buffer[..output_size].to_vec()).unwrap().to_string();
+    return String::from_utf8(output_buffer[..output_size].to_vec())
+        .unwrap()
+        .to_string();
 }
 
 fn get_output_from_context(context: &GraphExecutionContext) -> String {
@@ -101,7 +103,6 @@ fn main() {
 
     // If there is a third argument, use it as the prompt and enter non-interactive mode.
     // This is mainly for the CI workflow.
-
 
     let mut saved_prompt = String::new();
     let system_prompt = String::from("You are a helpful assistant.");

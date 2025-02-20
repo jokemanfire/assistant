@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use reqwest::Client;
 use serde_json::Value;
 
-use crate::{config::SpeechToTextConfig, server::ModelDeal};
+use crate::{config::SpeechToTextConfig, service::ttrpcservice::ModelDeal};
 
 pub struct SpeechModel {
     config: SpeechToTextConfig,

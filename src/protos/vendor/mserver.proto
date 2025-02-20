@@ -1,0 +1,64 @@
+syntax = "proto3";
+
+package mserver;
+
+import "model.proto";
+
+// 扩展的文本请求消息
+message ForwardTextRequest {
+    model.TextRequest request = 1;      // 使用 model.proto 中的 TextRequest
+    repeated string route_uuids = 2;    // 记录请求经过的服务器 UUID
+    map<string, string> parameters = 3; // 可选参数
+}
+
+// 扩展的文本响应消息
+message ForwardTextResponse {
+    model.TextResponse response = 1;     // 使用 model.proto 中的 TextResponse
+    repeated string route_uuids = 2;     // 记录响应经过的服务器 UUID
+    string error = 3;                    // 错误信息，如果有的话
+}
+
+// 模型状态请求
+message ModelStatusRequest {
+    string model_id = 1;
+}
+
+// 模型状态响应
+message ModelStatusResponse {
+    enum Status {
+        UNKNOWN = 0;
+        LOADING = 1;
+        READY = 2;
+        ERROR = 3;
+    }
+    Status status = 1;
+    string error = 2;
+}
+
+// 服务接口定义
+service ServerService {
+    // 查询可用模型列表
+    rpc QueryModels (Empty) returns (ModelListResponse);
+    
+    // 查询特定模型状态
+    rpc QueryModelStatus (ModelStatusRequest) returns (ModelStatusResponse);
+    
+    // 处理文本请求，支持转发
+    rpc ProcessText (ForwardTextRequest) returns (ForwardTextResponse);
+}
+
+// 空请求消息
+message Empty {}
+
+// 模型列表响应
+message ModelListResponse {
+    repeated ModelInfo models = 1;
+}
+
+// 模型信息
+message ModelInfo {
+    string model_id = 1;
+    string name = 2;
+    string description = 3;
+    ModelStatusResponse.Status status = 4;
+}

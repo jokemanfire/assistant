@@ -1,19 +1,41 @@
 @startuml
 skinparam componentStyle uml2
 
-package "Client" as client {
+' 客户端部分
+package "Clients" {
     component "TTRPC Client" as ttrpc_client
+    component "gRPC Client" as grpc_client
+    component "Other Clients..." as other_clients
 }
 
-package "Service" as service {
-    component "TTRPC Server" as ttrpc_server
-    component "Model Manager" as model_manager {
-        component "Offline Models" as offline_models
-        component "Online Models" as online_models
+' 主服务部分
+package "Primary Service" as primary_service {
+    ' 服务接入层
+    package "Service Interface" {
+        component "TTRPC Server" as ttrpc_server
+        component "gRPC Server" as grpc_server
     }
-    component "Speech - to - Text Model" as stt_model
-    component "Dialogue Model" as dialogue_model
-    component "Text - to - Speech Model" as tts_model
+    
+    ' 负载均衡器
+    component "Load Balancer" as load_balancer
+    
+    ' 模型管理系统
+    package "Model Management" as model_manager {
+        component "Model Registry" as model_registry
+        
+        package "Local Models" {
+            component "Local Model Instance 1" as local_model1
+            component "Local Model Instance 2" as local_model2
+            component "Local Model Instance N" as local_modelN
+        }
+    }
+}
+
+' 远程服务部分
+package "Remote Services" as remote_services {
+    component "Remote Service 1" as remote1
+    component "Remote Service 2" as remote2
+    component "Remote Service N" as remoteN
 }
 
 ttrpc_client --> ttrpc_server : TTRPC requests

@@ -4,11 +4,17 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-async-trait.workspace = true
-protobuf.workspace = true
+
+protobuf = {workspace = true}
 ttrpc= {workspace =true, features = ["async"]}
+tonic = {workspace = true}
+prost = {workspace = true}
+# prost-types = { version = "0.13", optional = true }
+serde_json = {workspace = true}
+serde = {workspace = true}
+async-trait = {workspace = true}
 
 [build-dependencies]
 # prost-build  = { workspace = true } 
 ttrpc-codegen = { workspace = true } 
-tonic-build = { workspace = true }
+tonic-build = { workspace = true ,features =["prost"]}

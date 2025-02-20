@@ -1,55 +1,65 @@
-use local::runmodel::{IoOption, ModelRunner};
 use log::{error, info};
-use std::{error::Error, process::exit};
+use std::{error::Error, process::exit, sync::Arc};
 use tokio::signal::unix::signal;
 pub mod config;
 pub mod local;
-pub mod server;
 pub mod modeldeal;
+pub mod service;
 
+pub struct MainServer {
+    config: config::Config,
+    local_service: Arc<service::localservice::LocalService>,
+    ttrpc_service: Arc<service::ttrpcservice::TtrpcService>,
+    grpc_service: Arc<service::grpcservice::GrpcService>,
+}
 
-// pub struct Service {
-//     config: Config,
-//     model_manager: ModelManager,
-// }
+impl MainServer {
+    pub async fn new() -> Result<Self, Box<dyn Error>> {
+        let config = config::Config::new();
 
-// impl Service {
-//     pub async fn new() -> anyhow::Result<Self> {
-//         let config = Config::builder()
-//             .add_source(config::File::with_name("default.toml"))
-//             .build()?;
-            
-//         let mut manager = ModelManager::new(config.clone());
-//         manager.init().await.unwrap();
+        let local_service = Arc::new(
+            service::localservice::LocalService::new(config.dialogue_model.local_models.clone())
+                .await,
+        );
+        let grpc_service = Arc::new(service::grpcservice::GrpcService::new(config.clone()).await?);
+        let ttrpc_service = Arc::new(
+            service::ttrpcservice::TtrpcService::new(config.clone(), local_service.clone()).await?,
+        );
 
-//         Ok(Self {
-//             config,
-//             model_manager: manager,
-//         })
-//     }
+        Ok(Self {
+            config,
+            local_service,
+            ttrpc_service,
+            grpc_service,
+        })
+    }
 
-//     pub async fn chat(&self, message: String) -> anyhow::Result<String> {
-//         // 如果启用了本地模型,使用本地模型
-//         if self.config.get_bool("local_model.enabled")? {
-//             self.model_manager.run_local_model(message).await
-//         } else {
-//             // 使用远程模型的逻辑
-//             todo!()
-//         }
-//     }
-// } 
+    pub async fn run(&self) -> Result<(), Box<dyn Error>> {
+        // 启动所有服务
+        if let Some(ttrpc_service) = Arc::get_mut(&mut self.ttrpc_service.clone()) {
+            ttrpc_service.start().await?;
+        }
+        if let Some(grpc_service) = Arc::get_mut(&mut self.grpc_service.clone()) {
+            grpc_service.start().await?;
+        }
+
+        let mut interrupt = signal(tokio::signal::unix::SignalKind::interrupt())?;
+        info!("All servers started");
+        interrupt.recv().await;
+
+        Ok(())
+    }
+}
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
-    let r = server::start_server().await;
-    if r.is_err() {
-        error!("Start server fail");
+
+    let server = MainServer::new().await?;
+    if let Err(e) = server.run().await {
+        error!("Server error: {}", e);
         exit(-1);
     }
-    let mut interrupt = signal(tokio::signal::unix::SignalKind::interrupt()).unwrap();
-    info!("server started");
-    interrupt.recv().await;
 
     Ok(())
 }

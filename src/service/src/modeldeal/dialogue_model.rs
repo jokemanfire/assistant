@@ -1,5 +1,5 @@
 use crate::config::{Config, DialogueModelConfig};
-use crate::server::ModelDeal;
+use crate::service::ttrpcservice::ModelDeal;
 use async_trait::async_trait;
 use reqwest::Client;
 use serde_json::{json, Value};

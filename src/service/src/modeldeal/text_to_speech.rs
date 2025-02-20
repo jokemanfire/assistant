@@ -1,7 +1,6 @@
 use reqwest::Client;
 use serde_json::json;
 
-
 pub async fn play_response(text: &str) -> Result<(), Box<dyn std::error::Error>> {
     let client = Client::new();
     let response = client
