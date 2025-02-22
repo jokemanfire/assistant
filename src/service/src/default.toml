@@ -3,7 +3,7 @@ ttrpc_addr = "unix:///tmp/ttrpc-test"
 grpc_addr = "0.0.0.0:50051"
 
 [remote_server]
-endpoints = ["http://remote1:50051", "http://remote2:50051"]
+endpoints = ["http://0.0.0.0:50051"]
 timeout = 5000  # milliseconds
 
 [speech_to_text]
@@ -12,36 +12,28 @@ api_key = ""
 model_name = "FunAudioLLM/SenseVoiceSmall"
 
 [dialogue_model]
-model_path="https://api.siliconflow.cn/v1/chat/completions"
-api_key= ""
-model_name= "Qwen/Qwen2.5-7B-Instruct"
-stream = true
-prompt_path= ""
-
-[[dialogue_model.local_models]]
-enabled = true
-priority = 1
-wasm_path = "./wasmedge-ggml-llama-stream.wasm"
-model_path = "./Meta-Llama-3-8B-Instruct.Q5_K_M.gguf"
-n_gpu_layers = 100
-ctx_size = 2048
-instance_count = 2
-
-[[dialogue_model.local_models]]
-enabled = true
-priority = 2
-wasm_path = "./wasmedge-ggml-qwen.wasm"
-model_path = "./Qwen-7B-Chat.gguf"
-n_gpu_layers = 100
-ctx_size = 2048
-instance_count = 1
+knowledge_base = ""
 
 [[dialogue_model.remote_models]]
 enabled = true
 priority = 3
-model_path = "https://api.remote1.com/v1/chat"
-model_name = "gpt-3.5-turbo"
+model_path = "https://api.siliconflow.cn/v1/chat/completions"
+model_name = "Qwen/Qwen2.5-7B-Instruct"
+api_key= ""
+stream = true
 parameters = { temperature = "0.7", max_tokens = "2048" }
+
+[[dialogue_model.local_models]]
+enabled = true
+priority = 1
+wasm_path = "/home/hu/code/assistant/target/wasm32-wasi/release/wasme-ggml.wasm"
+model_path = "/home/hu/code/assistant/models/qwen1_5-0_5b-chat-q2_k.gguf"
+n_gpu_layers = 100
+ctx_size = 2048
+instance_count = 2
+
+
+
 
 
 [text_to_speech]

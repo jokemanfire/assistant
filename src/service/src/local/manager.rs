@@ -53,24 +53,10 @@ pub struct ModelManager {
         Arc<mpsc::Sender<ModelRequest>>,
         Arc<Mutex<mpsc::Receiver<ModelRequest>>>,
     ),
-    response_senders: Arc<Mutex<Vec<(String, Sender<ModelResponse>)>>>,
+    response_senders: Arc<Mutex<HashMap<String, Sender<ModelResponse>>>>,
 }
 
-impl ModelRunner {
-    // Send request to the runner
-    pub async fn get_result(&self, request: ModelRequest) -> anyhow::Result<()> {
-        let response = self.result_receiver.lock().await.recv().await.unwrap();
-        let runner = self
-            .wasm_runner
-            .lock()
-            .await
-            .deal_request(request)
-            .await
-            .unwrap();
-        // self.result_receiver.lock().await.send(response).await.unwrap();
-        Ok(())
-    }
-}
+
 impl ModelManager {
     pub fn new(configs: Vec<LocalModelConfig>) -> Self {
         let (model_tx, model_rx) = mpsc::channel(32);
@@ -80,33 +66,23 @@ impl ModelManager {
             model_channel: (Arc::new(model_tx), Arc::new(Mutex::new(model_rx))),
             configs,
             request_queue: (Arc::new(request_tx), Arc::new(Mutex::new(request_rx))),
-            response_senders: Arc::new(Mutex::new(Vec::new())),
+            response_senders: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
     pub async fn init(&mut self) -> anyhow::Result<()> {
         for c in &self.configs {
-            let wasm_path = c.wasm_path.clone();
-            let model_path = c.model_path.clone();
-            let n_gpu_layers = c.n_gpu_layers;
-            let ctx_size = c.ctx_size;
-            let instance_count = c.instance_count;
-            self.create_model(&wasm_path).await?;
+            self.create_model(&c).await?;
         }
-
         // start request process
         self.start_request_processor();
-
         Ok(())
     }
 
-    async fn create_model(&self, wasm_path: &str) -> anyhow::Result<()> {
-        let runner = WasmModelRunner::new(
-            HashMap::new(),
-            wasm_path.to_string(),
-            "llama-2-7b-chat.Q5_K_M.gguf".to_string(),
-        )
-        .unwrap();
+    async fn create_model(&self, wasm_config: &LocalModelConfig) -> anyhow::Result<()> {
+        let mut runner = WasmModelRunner::new(wasm_config.clone())?;
+        // start runner
+        runner.run().await.unwrap();
         let (request_tx, request_rx) = mpsc::channel(32);
         let (result_tx, result_rx) = mpsc::channel(32);
 
@@ -117,7 +93,7 @@ impl ModelManager {
         tokio::spawn(async move {
             let mut rx: Receiver<ModelRequest> = request_rx;
             while let Some(request) = rx.recv().await {
-                let mut runner = runner_clone.lock().await;
+                let runner = runner_clone.lock().await;
                 let response = match runner.deal_request(request.clone()).await {
                     Ok(text) => ModelResponse {
                         text,
@@ -136,9 +112,8 @@ impl ModelManager {
                 if let Some(sender) = response_senders
                     .lock()
                     .await
-                    .iter()
-                    .find(|(id, _)| id == &request.request_id)
-                    .map(|(_, sender)| sender.clone())
+                    .get_mut(&request.request_id)
+                    .map(|sender| sender.clone())
                 {
                     let _ = sender.send(response).await;
                 }
@@ -189,7 +164,7 @@ impl ModelManager {
         self.response_senders
             .lock()
             .await
-            .push((request_id.clone(), response_tx));
+            .insert(request_id.clone(), response_tx);
 
         // create request
         let request = ModelRequest {
@@ -207,31 +182,27 @@ impl ModelManager {
                 self.response_senders
                     .lock()
                     .await
-                    .retain(|(id, _)| id != &request_id);
+                    .remove(&request_id);
                 Ok(response)
             }
-            _ => Ok(ModelResponse {
-                text: String::new(),
-                request_id,
-                status: ResponseStatus::Timeout,
-                error: Some("Request timeout".to_string()),
-            }),
+            _ => {
+                self.response_senders
+                    .lock()
+                    .await
+                    .remove(&request_id);
+                Ok(ModelResponse {
+                    text: String::new(),
+                    request_id,
+                    status: ResponseStatus::Timeout,
+                    error: Some("Request timeout".to_string()),
+                })
+            }
         }
     }
 
-    // 获取队列中的请求数量
-    pub async fn queue_size(&self) -> usize {
-        self.request_queue.1.lock().await.len()
-    }
-
-    // 获取可用的模型运行器数量
+    // get available runners
     pub async fn available_runners(&self) -> usize {
-        // 通过 try_recv 统计可用运行器数量
-        let mut count = 0;
-        while self.model_channel.1.lock().await.try_recv().is_ok() {
-            count += 1;
-        }
-        count
+        self.model_channel.1.lock().await.len()
     }
 }
 
@@ -241,5 +212,22 @@ mod tests {
     use tokio;
 
     #[tokio::test]
-    async fn test_model_manager() {}
+    async fn test_model_manager() {
+        let config = LocalModelConfig {
+            enabled: true,
+            priority: 1,
+            wasm_path: "/home/hu/code/assistant/target/wasm32-wasi/release/wasme-ggml.wasm".to_string(),
+            model_path: "/home/hu/code/assistant/models/qwen1_5-0_5b-chat-q2_k.gguf".to_string(),
+            n_gpu_layers: 0,
+            ctx_size: 0,
+            instance_count: 0,
+        };
+        let mut manager = ModelManager::new(vec![config]);
+        manager.init().await.unwrap();
+
+        let response1 = manager.submit_request("你好".to_string()).await.unwrap();
+        println!("Response1: {}", response1.text);
+        let response2 = manager.submit_request("你是谁".to_string()).await.unwrap();
+        println!("Response2: {}", response2.text);
+    }
 }

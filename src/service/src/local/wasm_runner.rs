@@ -1,28 +1,24 @@
 use crate::local::manager::ModelRequest;
 use anyhow::Result;
+use log::debug;
 use std::collections::HashMap;
-use std::io::{BufRead, BufReader, BufWriter, Read, Write};
+use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, Command, Stdio};
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use crate::config::LocalModelConfig;
 
 pub struct WasmModelRunner {
-    dir_mapping: HashMap<String, String>,
-    wasm_file: String,
-    model_name: String,
+    config: LocalModelConfig,
     process: Option<Arc<Mutex<Child>>>,
 }
 /// todo use sdk
 impl WasmModelRunner {
     pub fn new(
-        dir_mapping: HashMap<String, String>,
-        wasm_file: String,
-        model_name: String,
+        config: LocalModelConfig,
     ) -> Result<Self> {
         Ok(Self {
-            dir_mapping,
-            wasm_file,
-            model_name,
+            config,
             process: None,
         })
     }
@@ -33,38 +29,36 @@ impl WasmModelRunner {
     ) -> Result<String, Box<dyn std::error::Error>> {
         if let Some(process) = &self.process {
             let mut process = process.lock().await;
-
-            // 获取stdin并写入请求
+            // get stdin and write request
             let stdin = process.stdin.as_mut().ok_or("Failed to get stdin")?;
             writeln!(stdin, "{}\n", serde_json::to_string(&request)?)?;
             stdin.flush()?;
 
-            // 从stdout读取响应
+            // read response from stdout
             let stdout = process.stdout.as_mut().ok_or("Failed to get stdout")?;
             let mut reader = BufReader::new(stdout);
-            // Read unitl \0
             let mut response = Vec::new();
             reader.read_until(b'\0', &mut response)?;
-
+            debug!("Response: {}", String::from_utf8(response.clone()).unwrap());
             Ok(String::from_utf8(response)?)
         } else {
             Err("WASM process not started".into())
         }
     }
 
-    fn run(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        // 启动 wasmedge 进程
+    pub async fn run(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        // start wasmedge process
         let process = Command::new("wasmedge")
             .arg("--dir")
-            .arg(".") // 允许访问当前目录
+            .arg(".") 
             .arg("--env")
             .arg("llama3=true")
             .arg("--env")
-            .arg("n_gpu_layers=100")
+            .arg(format!("n_gpu_layers={}", self.config.n_gpu_layers))
             .arg("--nn-preload")
-            .arg(format!("default:GGML:AUTO:{}", self.model_name))
-            .arg(&self.wasm_file)
-            .arg("default") // 传递 default 作为参数
+            .arg(format!("default:GGML:AUTO:{}", self.config.model_path))
+            .arg(&self.config.wasm_path)
+            .arg("default") // pass default as argument
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -78,7 +72,7 @@ impl WasmModelRunner {
 impl Drop for WasmModelRunner {
     fn drop(&mut self) {
         if let Some(process) = &self.process {
-            // 尝试获取锁并终止进程
+            // try lock and kill
             if let Ok(mut process) = process.try_lock() {
                 let _ = process.kill();
             }
@@ -92,20 +86,21 @@ mod tests {
 
     #[tokio::test]
     async fn test_run() {
-        let mut runner = WasmModelRunner::new(
-            HashMap::new(),
-            "/home/10346053@zte.intra/hdy/github/assistant/target/wasm32-wasi/release/wasme-ggml.wasm".to_string(),
-            "/home/10346053@zte.intra/hdy/wasm/qwen.gguf".to_string()
-        ).unwrap();
-
-        runner.run().unwrap();
-
-        let request = ModelRequest {
-            prompt: "你好".to_string(),
+        let mut runner = WasmModelRunner::new(LocalModelConfig {
+            enabled: true,
+            priority: 1,
+            wasm_path: "/home/hu/code/assistant/target/wasm32-wasi/release/wasme-ggml.wasm".to_string(),
+            model_path: "/home/hu/code/assistant/models/qwen1_5-0_5b-chat-q2_k.gguf".to_string(),
+            n_gpu_layers: 0,
+            ctx_size: 0,
+            instance_count: 0,
+        }).unwrap();
+        runner.run().await.unwrap();
+        let response = runner.deal_request(ModelRequest {
+            prompt: "Hello, how are you?".to_string(),
+            request_id: "1".to_string(),
             parameters: None,
-            request_id: "test-1".to_string(),
-        };
-        let response = runner.deal_request(request).await.unwrap();
-        println!("Response: {}", response);
+        }).await.unwrap();
+        println!("response: {}", response);
     }
 }

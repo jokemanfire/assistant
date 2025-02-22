@@ -1,4 +1,4 @@
-use crate::config::{Config, DialogueModelConfig};
+use crate::config::DialogueModelConfig;
 use crate::service::ttrpcservice::ModelDeal;
 use async_trait::async_trait;
 use reqwest::Client;
@@ -16,14 +16,14 @@ impl ModelDeal<String, String> for DialogueModel {
     ) -> Result<String, Box<dyn std::error::Error>> {
         let client = Client::new();
         let response = client
-            .post(self.config.model_path.clone().unwrap())
+            .post(self.config.remote_models[0].model_path.clone())
             .header("Content-Type", "application/json")
             .header(
                 "Authorization",
-                format!("Bearer {}", self.config.api_key.clone().unwrap()),
+                format!("Bearer {}", self.config.remote_models[0].api_key.clone()),
             )
             .json(&json!({
-                "model": self.config.model_name.clone().unwrap(),
+                "model": self.config.remote_models[0].model_name.clone(),
                 "messages": [
                     {
                         "role": "system",
@@ -51,12 +51,6 @@ impl ModelDeal<String, String> for DialogueModel {
         Ok(response_text.to_string())
     }
 
-    async fn get_response_offline(
-        &self,
-        inputdata: String,
-    ) -> Result<String, Box<dyn std::error::Error>> {
-        todo!()
-    }
 }
 
 #[cfg(test)]
@@ -64,7 +58,7 @@ impl ModelDeal<String, String> for DialogueModel {
 mod tests {
     use super::*;
     use tokio;
-
+    use crate::config::Config;
     #[tokio::test]
     async fn test_generate_response() {
         let config = Config::new();

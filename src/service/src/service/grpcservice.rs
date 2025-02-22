@@ -1,6 +1,5 @@
 use crate::config::Config;
 use log::{info, warn};
-use protos::grpc::model::model_service_server::ModelServiceServer;
 use protos::grpc::model::{TextRequest, TextResponse};
 use protos::grpc::mserver::server_service_client::ServerServiceClient;
 use protos::grpc::mserver::server_service_server::{ServerService, ServerServiceServer};
@@ -153,4 +152,5 @@ impl GrpcService {
             .await?;
         Ok(())
     }
+
 }

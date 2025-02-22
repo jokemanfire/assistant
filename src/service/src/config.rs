@@ -27,9 +27,11 @@ pub struct RemoteServerConfig {
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct ModelConfig {
     pub enabled: bool,
-    pub priority: i32, // 优先级，数字越小优先级越高
+    pub priority: i32, // priority, the smaller the number, the higher the priority
     pub model_path: String,
     pub model_name: String,
+    pub api_key: String,
+    pub stream: bool,
     pub parameters: Option<HashMap<String, String>>,
 }
 
@@ -53,11 +55,7 @@ pub struct SpeechToTextConfig {
 
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct DialogueModelConfig {
-    pub model_path: Option<String>,
-    pub model_name: Option<String>,
-    pub api_key: Option<String>,
-    pub stream: bool,
-    pub prompt_path: Option<String>,
+    pub knowledge_base: Option<String>,
     pub local_models: Vec<LocalModelConfig>,
     pub remote_models: Vec<ModelConfig>,
 }

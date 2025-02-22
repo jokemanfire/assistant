@@ -1,7 +1,7 @@
 use crate::config::{Config, LocalModelConfig, ModelConfig};
 use crate::modeldeal::dialogue_model::DialogueModel;
 use async_trait::async_trait;
-use log::{info, warn};
+use log::{debug, info, warn};
 use protos::ttrpc::{model, model_ttrpc};
 use std::error::Error;
 use std::sync::Arc;
@@ -9,6 +9,8 @@ use std::time::Duration;
 use tokio::time::timeout;
 use tonic::{transport::Channel, Request};
 use ttrpc::r#async::Server;
+
+const AVAILABLE_RUNNERS_TIMEOUT: u64 = 1;
 
 pub struct TtrpcService {
     server: Server,
@@ -50,7 +52,12 @@ impl TtrpcService {
     }
 
     pub async fn start(&mut self) -> Result<(), Box<dyn Error>> {
+        info!("Starting ttrpc server");
         self.server.start().await?;
+        Ok(())
+    }
+    pub async fn shutdown(&mut self) -> Result<(), Box<dyn Error>> {
+        self.server.shutdown().await?;
         Ok(())
     }
 }
@@ -62,12 +69,12 @@ impl ModelS {
     ) -> Result<model::TextResponse, Box<dyn Error>> {
         let grpc_addr = self
             .config
-            .server
-            .grpc_addr
-            .as_ref()
+            .remote_server
+            .endpoints
+            .first()
             .ok_or("gRPC address not configured")?;
 
-        let channel = Channel::from_shared(format!("http://{}", grpc_addr))?
+        let channel = Channel::from_shared(grpc_addr.clone())?
             .connect()
             .await?;
 
@@ -93,8 +100,6 @@ impl ModelS {
 #[async_trait]
 pub trait ModelDeal<S, R> {
     async fn get_response_online(&self, inputdata: S) -> Result<R, Box<dyn std::error::Error>>;
-    async fn get_response_offline(&self, inputdata: S) -> Result<R, Box<dyn std::error::Error>>;
-    // TODO Add Stream Response
 }
 
 #[async_trait]
@@ -105,8 +110,7 @@ impl model_ttrpc::ModelService for ModelS {
         req: model::TextRequest,
     ) -> ::ttrpc::Result<model::TextResponse> {
         info!("Received text chat request: {:?}", req.text);
-
-        // 首先尝试远程模型
+        // try remote model if remote model fail, try local model
         if !self.chat_model.config.remote_models.is_empty() {
             match self.chat_model.get_response_online(req.text.clone()).await {
                 Ok(response) => {
@@ -118,25 +122,37 @@ impl model_ttrpc::ModelService for ModelS {
                 Err(e) => warn!("Remote model failed: {}", e),
             }
         }
-
-        // 尝试本地模型
+        debug!("No remote model, trying local model");
+        // try local model
         match timeout(
-            Duration::from_secs(3),
-            self.local_service.chat(req.text.clone()),
+            Duration::from_secs(AVAILABLE_RUNNERS_TIMEOUT as u64),
+            // get available runners in available_timeout
+            {
+                let local_service = self.local_service.clone();
+                tokio::spawn(async move {
+                    loop {
+                        let available_runners = local_service.available_runners().await;
+                        if available_runners > 0 {
+                            break;
+                        }
+                        tokio::time::sleep(Duration::from_millis(100)).await;
+                    }
+                })
+            },
         )
         .await
         {
-            Ok(Ok(response)) => {
+            Ok(_) => {
+                let response = self.local_service.chat(req.text.clone()).await.unwrap();
                 return Ok(model::TextResponse {
                     text: response,
                     ..Default::default()
                 });
             }
-            Ok(Err(e)) => warn!("Local model error: {}", e),
-            Err(_) => warn!("Local model timeout after 3 seconds"),
+            Err(e) => warn!("No local model available: {}", e),
         }
 
-        // 如果本地模型繁忙，尝试通过 gRPC 转发
+        // if local model is busy, try to forward through gRPC
         if let Some(grpc_addr) = &self.config.server.grpc_addr {
             info!(
                 "Attempting to forward request through gRPC to {}",
@@ -194,5 +210,10 @@ mod tests {
     use tokio;
 
     #[tokio::test]
-    async fn test_ttrpc_server() {}
+    async fn test_ttrpc_server() {
+        let config = Config::new();
+        let local_service = Arc::new(crate::service::localservice::LocalService::new(config.dialogue_model.local_models.clone()).await);
+        let mut ttrpc_service = TtrpcService::new(config, local_service).await.unwrap();
+        ttrpc_service.start().await.unwrap();
+    }
 }

@@ -41,12 +41,6 @@ impl ModelDeal<Vec<u8>, String> for SpeechModel {
         Ok(json_data["text"].as_str().unwrap_or_default().to_string())
     }
 
-    async fn get_response_offline(
-        &self,
-        _data: Vec<u8>,
-    ) -> Result<String, Box<dyn std::error::Error>> {
-        Ok("Offline response not implemented".to_string())
-    }
 }
 
 mod tests {

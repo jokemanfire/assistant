@@ -1,4 +1,4 @@
-use protos::{model, model_ttrpc};
+use protos::ttrpc::{model,model_ttrpc};
 use std::{error::Error, time::Duration};
 use ttrpc::{
     asynchronous::Client,
@@ -23,8 +23,9 @@ pub async fn dialogue_model(input_text: String) -> Result<String, Box<dyn Error>
         text: input_text.to_string(),
         ..Default::default()
     };
-
+    println!("Sending text chat request: {:?}", req.text);
     let output = ttrpc_client.text_chat(default_ctx(), &req).await?;
+    println!("Received text chat response: {:?}", output.text);
     Ok(output.text)
 }
 #[cfg(test)]

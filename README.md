@@ -1,4 +1,25 @@
 # Assistant
+After the deepseek-ai model is published, The cost of large models will become lower and easier to run locally. The project goal is to deploy multiple large models locally and complete their load balancing.
+
+
+## Use local model
+
+1. install wasmedge with ggml plugin
+``` sh
+curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- --plugins wasi_nn-ggml
+```
+
+2. download ggml model
+``` sh
+wget https://huggingface.co/Qwen/Qwen1.5-0.5B-Chat-GGUF/resolve/main/qwen1_5-0_5b-chat-q2_k.gguf
+```
+
+3. build wasme-ggml
+``` sh
+cd wasmedge-ggml
+rustup target add wasm32-wasi
+cargo build --target wasm32-wasi --release
+```
 
 ## Project Overview
 
@@ -58,6 +79,7 @@ Use WASM to implement local models, supporting:
 ## Usage
 
 ### 1. Service
+You can run multiple local models in the service.And online service also support.
 
 The service module handles the core functionality of the voice assistant. To run the service, follow these steps:
 
