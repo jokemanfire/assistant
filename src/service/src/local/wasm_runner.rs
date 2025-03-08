@@ -1,7 +1,6 @@
 use crate::local::manager::ModelRequest;
 use anyhow::Result;
 use log::debug;
-use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, Command, Stdio};
 use std::sync::Arc;
@@ -51,8 +50,6 @@ impl WasmModelRunner {
         let process = Command::new("wasmedge")
             .arg("--dir")
             .arg(".") 
-            .arg("--env")
-            .arg("llama3=true")
             .arg("--env")
             .arg(format!("n_gpu_layers={}", self.config.n_gpu_layers))
             .arg("--nn-preload")

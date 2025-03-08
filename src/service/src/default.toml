@@ -1,6 +1,7 @@
 [server]
 ttrpc_addr = "unix:///tmp/ttrpc-test"
 grpc_addr = "0.0.0.0:50051"
+try_max_time = 3
 
 [remote_server]
 endpoints = ["http://0.0.0.0:50051"]

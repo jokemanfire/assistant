@@ -29,18 +29,6 @@ This project implements a C-S AI assistant.
 3.support multiple models.
 4.support multiple services.
 
-## Todo
-
-client:
-- [ ] Add a GUI client
-- [ ] Add a web client
-- [ ] Add a CLI client
-
-service:
-- [ ] Add Stream support
-- [ ] Add Prompt support
-- [ ] Add Model support
-- [ ] Add Service support
 
 
 ## Design
@@ -67,8 +55,7 @@ The system follows a modular client-server architecture with the following key c
    - Dialogue management
    - Text-to-Speech (TTS) conversion
 
-### Component Interaction
-![design](images/design.png)
+
 
 ### Local Model Implementation
 Use WASM to implement local models, supporting:

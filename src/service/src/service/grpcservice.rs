@@ -14,28 +14,79 @@ use ttrpc::r#async::Client as TtrpcClient;
 pub struct GrpcService {
     server: Server,
     config: Config,
+    uuid: String,
 }
 
 struct ModelService {
     config: Config,
+    uuid: String,
 }
 
 #[tonic::async_trait]
 impl ServerService for ModelService {
     async fn query_models(
         &self,
-        request: tonic::Request<Empty>,
+        _request: tonic::Request<Empty>,
     ) -> std::result::Result<tonic::Response<ModelListResponse>, tonic::Status> {
-        todo!()
+        use protos::grpc::mserver::ModelInfo;
+        
+        // Get models from both local and remote configurations
+        let mut models = Vec::new();
+        
+        // Add local models
+        for model in &self.config.dialogue_model.local_models {
+            models.push(ModelInfo {
+                model_id: model.model_path.clone(),
+                name: model.model_path.split('/').last().unwrap_or("unknown").to_string(),
+                description: format!("Local model with {} GPU layers", model.n_gpu_layers),
+                status: if model.enabled { 2 } else { 0 }, // 2 = Ready, 0 = Unknown
+            });
+        }
+
+        // Add remote models
+        for model in &self.config.dialogue_model.remote_models {
+            models.push(ModelInfo {
+                model_id: model.model_name.clone(),
+                name: model.model_name.clone(),
+                description: format!("Remote model with priority {}", model.priority),
+                status: if model.enabled { 2 } else { 0 }, // 2 = Ready, 0 = Unknown
+            });
+        }
+
+        Ok(Response::new(ModelListResponse { models }))
     }
-    /// 查询特定模型状态
+
+    /// Query model status
     async fn query_model_status(
         &self,
         request: tonic::Request<ModelStatusRequest>,
     ) -> std::result::Result<tonic::Response<ModelStatusResponse>, tonic::Status> {
-        todo!()
+        let request = request.into_inner();
+        
+        // Check local models first
+        if let Some(model) = self.config.dialogue_model.local_models
+            .iter()
+            .find(|m| m.model_path == request.model_id) {
+            return Ok(Response::new(ModelStatusResponse {
+                status: if model.enabled { 2 } else { 0 }, // 2 = Ready, 0 = Unknown
+                error: String::new(),
+            }));
+        }
+
+        // Then check remote models
+        if let Some(model) = self.config.dialogue_model.remote_models
+            .iter()
+            .find(|m| m.model_name == request.model_id) {
+            return Ok(Response::new(ModelStatusResponse {
+                status: if model.enabled { 2 } else { 0 }, // 2 = Ready, 0 = Unknown
+                error: String::new(),
+            }));
+        }
+
+        Err(Status::not_found(format!("Model {} not found", request.model_id)))
     }
-    /// 处理文本请求，支持转发
+
+    /// Process text request, supports forwarding
     async fn process_text(
         &self,
         request: tonic::Request<ForwardTextRequest>,
@@ -84,13 +135,13 @@ impl ModelService {
         &self,
         request: ForwardTextRequest,
     ) -> Result<Response<ForwardTextResponse>, Status> {
-        // 获取远程服务器列表
+        // Get remote server list
         let endpoints = &self.config.remote_server.endpoints;
         if endpoints.is_empty() {
             return Err(Status::unavailable("No remote endpoints configured"));
         }
 
-        // 简单的循环尝试每个端点
+        // Simple loop to try each endpoint
         for endpoint in endpoints {
             match self
                 .try_forward_to_endpoint(endpoint, request.clone())
@@ -109,7 +160,8 @@ impl ModelService {
         endpoint: &str,
         request: ForwardTextRequest,
     ) -> Result<Response<ForwardTextResponse>, Box<dyn Error>> {
-        // 创建到远程服务器的连接
+        let mut request = request;
+        // Create connection to remote server
         let channel = tonic::transport::Channel::from_shared(endpoint.to_string())?
             .timeout(std::time::Duration::from_millis(
                 self.config.remote_server.timeout.unwrap_or(5000),
@@ -117,11 +169,33 @@ impl ModelService {
             .connect()
             .await.unwrap();
 
-        // 创建客户端
+        // Create client
         let mut client = ServerServiceClient::new(channel);
 
-        // 转发请求
-        let response = client.process_text(Request::new(request)).await.unwrap();
+        let mut parameters = request.parameters.clone();
+  
+        if let Some(try_max_time) = request.parameters.get("try_max_time") {
+            parameters.insert("try_max_time".to_string(), try_max_time.clone());
+        } else {
+            parameters.insert("try_max_time".to_string(), self.config.server.try_max_time.unwrap_or(3).to_string());
+        }
+        if !request.route_uuids.contains(&self.uuid) {
+            request.route_uuids.push(self.uuid.clone());
+        }
+        let try_time = match request.parameters.get("try_time") {
+            Some(try_time) => {
+                //try_time +1
+                (try_time.parse::<u32>().unwrap() + 1).to_string()
+            },
+            None => "1".to_string(),
+        };
+        //check try_time
+        if try_time.parse::<u32>().unwrap() >  parameters.get("try_max_time").unwrap().parse::<u32>().unwrap() {
+            return Err(Box::new(Status::unavailable("Try time out")));
+        }
+        request.parameters = parameters;
+
+        let response = client.process_text(request).await.unwrap();
         Ok(response)
     }
 }
@@ -129,7 +203,8 @@ impl ModelService {
 impl GrpcService {
     pub async fn new(config: Config) -> Result<Self, Box<dyn Error>> {
         let server = Server::builder();
-        Ok(Self { server, config })
+        let uuid = uuid::Uuid::new_v4().to_string();
+        Ok(Self { server, config, uuid})
     }
 
     pub async fn start(&mut self) -> Result<(), Box<dyn Error>> {
@@ -143,6 +218,7 @@ impl GrpcService {
 
         let model_service = ModelService {
             config: self.config.clone(),
+            uuid: self.uuid.clone(),
         };
 
         info!("Starting gRPC server on {}", addr);
