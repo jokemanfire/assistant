@@ -1,4 +1,5 @@
 use log::debug;
+use protos::ttrpc::model::ChatMessage;
 
 use crate::config::LocalModelConfig;
 use crate::local::manager::ModelManager;
@@ -16,8 +17,8 @@ impl LocalService {
             model_manager: Arc::new(manager),
         }
     }
-    pub async fn chat(&self, message: String) -> anyhow::Result<String> {
-        let r = self.model_manager.submit_request(message).await;
+    pub async fn chat(&self, messages: Vec<ChatMessage>) -> anyhow::Result<String> {
+        let r = self.model_manager.submit_request(messages).await;
         Ok(r.unwrap().text)
     }
     // get available runners

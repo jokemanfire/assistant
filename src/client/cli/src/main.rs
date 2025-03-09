@@ -1,5 +1,5 @@
 use std::{error::Error, io};
-
+use protos::ttrpc::model::{ChatMessage, Role};
 fn read_input() -> String {
     loop {
         let mut answer = String::new();
@@ -18,7 +18,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
     loop {
         println!("USER:");
         let input = read_input();
-        let r = api::dialogue_model::dialogue_model(input).await;
+        let r = api::dialogue_model::dialogue_model(vec![ChatMessage {
+            role: Role::ROLE_USER.into(),
+            content: input,
+            ..Default::default()
+        }]).await;
         println!("AI: {:?}", r.unwrap_or_default());
         // tokio::time::sleep(Duration::from_secs(1)).await;
     }

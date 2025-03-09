@@ -27,11 +27,13 @@ parameters = { temperature = "0.7", max_tokens = "2048" }
 [[dialogue_model.local_models]]
 enabled = true
 priority = 1
-wasm_path = "/home/hu/code/assistant/target/wasm32-wasi/release/wasme-ggml.wasm"
-model_path = "/home/hu/code/assistant/models/qwen1_5-0_5b-chat-q2_k.gguf"
-n_gpu_layers = 100
-ctx_size = 2048
-instance_count = 2
+wasm_path = "/path/to/wasme-ggml.wasm"
+model_path = "/path/to/model.gguf"
+n_gpu_layers = 0
+ctx_size = 1024
+instance_count = 1
+model_type = "qwen"  # 或 "deepseek"
+stream = true
 
 
 

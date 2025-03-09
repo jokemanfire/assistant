@@ -7,9 +7,16 @@ pub struct SpeechRequest {
     pub audio_format: ::prost::alloc::string::String,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ChatMessage {
+    #[prost(enumeration = "Role", tag = "1")]
+    pub role: i32,
+    #[prost(string, tag = "2")]
+    pub content: ::prost::alloc::string::String,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct TextRequest {
-    #[prost(string, tag = "1")]
-    pub text: ::prost::alloc::string::String,
+    #[prost(message, repeated, tag = "1")]
+    pub messages: ::prost::alloc::vec::Vec<ChatMessage>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct TextResponse {
@@ -22,6 +29,38 @@ pub struct SpeechResponse {
     pub audio_data: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
     pub audio_format: ::prost::alloc::string::String,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum Role {
+    Unspecified = 0,
+    System = 1,
+    User = 2,
+    Assistant = 3,
+}
+impl Role {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::Unspecified => "ROLE_UNSPECIFIED",
+            Self::System => "ROLE_SYSTEM",
+            Self::User => "ROLE_USER",
+            Self::Assistant => "ROLE_ASSISTANT",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "ROLE_UNSPECIFIED" => Some(Self::Unspecified),
+            "ROLE_SYSTEM" => Some(Self::System),
+            "ROLE_USER" => Some(Self::User),
+            "ROLE_ASSISTANT" => Some(Self::Assistant),
+            _ => None,
+        }
+    }
 }
 /// Generated client implementations.
 pub mod model_service_client {

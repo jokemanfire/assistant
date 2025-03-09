@@ -6,12 +6,16 @@ use std::sync::Arc;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::{mpsc, Mutex};
 use tokio::time::{timeout, Duration};
+use protos::ttrpc::model::ChatMessage;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
+
+#[derive(Clone, Debug)]
 pub struct ModelRequest {
-    pub prompt: String,
-    pub parameters: Option<ModelParameters>,
+    pub messages: Vec<ChatMessage>,
     pub request_id: String,
+    pub parameters: Option<HashMap<String, String>>,
+    pub system_prompt: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -84,7 +88,7 @@ impl ModelManager {
         // start runner
         runner.run().await.unwrap();
         let (request_tx, request_rx) = mpsc::channel(32);
-        let (result_tx, result_rx) = mpsc::channel(32);
+        let (_result_tx, result_rx) = mpsc::channel(32);
 
         let runner = Arc::new(Mutex::new(runner));
         let runner_clone = runner.clone();
@@ -92,6 +96,7 @@ impl ModelManager {
 
         tokio::spawn(async move {
             let mut rx: Receiver<ModelRequest> = request_rx;
+            // If get the model request, deal with it
             while let Some(request) = rx.recv().await {
                 let runner = runner_clone.lock().await;
                 let response = match runner.deal_request(request.clone()).await {
@@ -108,7 +113,7 @@ impl ModelManager {
                         error: Some(e.to_string()),
                     },
                 };
-
+                // If get the response, send to the target id response sender
                 if let Some(sender) = response_senders
                     .lock()
                     .await
@@ -156,7 +161,7 @@ impl ModelManager {
         });
     }
 
-    pub async fn submit_request(&self, prompt: String) -> anyhow::Result<ModelResponse> {
+    pub async fn submit_request(&self, messages: Vec<ChatMessage>) -> anyhow::Result<ModelResponse> {
         let request_id = uuid::Uuid::new_v4().to_string();
         let (response_tx, mut response_rx) = mpsc::channel(1);
 
@@ -168,16 +173,17 @@ impl ModelManager {
 
         // create request
         let request = ModelRequest {
-            prompt,
+            messages,
             parameters: None,
             request_id: request_id.clone(),
+            system_prompt: None,
         };
 
         // add request to queue
         self.request_queue.0.send(request).await?;
 
         // wait response, set timeout
-        match timeout(Duration::from_secs(30), response_rx.recv()).await {
+        match timeout(DEFAULT_TIMEOUT, response_rx.recv()).await {
             Ok(Some(response)) => {
                 self.response_senders
                     .lock()
@@ -209,6 +215,7 @@ impl ModelManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use protos::ttrpc::model::Role;
     use tokio;
 
     #[tokio::test]
@@ -217,17 +224,27 @@ mod tests {
             enabled: true,
             priority: 1,
             wasm_path: "/home/hu/code/assistant/target/wasm32-wasi/release/wasme-ggml.wasm".to_string(),
-            model_path: "/home/hu/code/assistant/models/qwen1_5-0_5b-chat-q2_k.gguf".to_string(),
+            model_path: "/home/hu/code/assistant/models/deepseek-ai.DeepSeek-R1-Distill-Qwen-1.5B.Q4_K_M.gguf".to_string(),
             n_gpu_layers: 0,
             ctx_size: 0,
             instance_count: 0,
+            model_type: "deepseek-ai".to_string(),
+            ..Default::default()
         };
         let mut manager = ModelManager::new(vec![config]);
         manager.init().await.unwrap();
 
-        let response1 = manager.submit_request("你好".to_string()).await.unwrap();
+        let response1 = manager.submit_request(vec![ChatMessage {
+            role: Role::ROLE_USER.into(),
+            content: "你好".to_string(),
+            ..Default::default()
+        }]).await.unwrap();
         println!("Response1: {}", response1.text);
-        let response2 = manager.submit_request("你是谁".to_string()).await.unwrap();
+        let response2 = manager.submit_request(vec![ChatMessage {
+            role: Role::ROLE_USER.into(),
+            content: "你是谁".to_string(),
+            ..Default::default()
+        }]).await.unwrap();
         println!("Response2: {}", response2.text);
     }
 }

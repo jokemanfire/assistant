@@ -67,8 +67,30 @@ async fn send_message(
         timestamp: chrono::Utc::now().timestamp(),
     });
 
-    // 调用 TTRPC 服务
-    match api::dialogue_model::dialogue_model(data.message.clone()).await {
+    // 将对话历史转换为 ChatMessage 格式
+    let chat_messages: Vec<protos::ttrpc::model::ChatMessage> = conversation
+        .messages
+        .iter()
+        .map(|msg| {
+            // 将角色字符串转换为 Role 枚举
+            let role = match msg.role.as_str() {
+                "user" => protos::ttrpc::model::Role::ROLE_USER,
+                "assistant" => protos::ttrpc::model::Role::ROLE_ASSISTANT,
+                "system" => protos::ttrpc::model::Role::ROLE_SYSTEM,
+                _ => protos::ttrpc::model::Role::ROLE_USER, // 默认为用户
+            };
+
+            // 创建 ChatMessage
+            protos::ttrpc::model::ChatMessage {
+                role: role.into(),
+                content: msg.content.clone(),
+                ..Default::default()
+            }
+        })
+        .collect();
+
+    // 调用 TTRPC 服务，传入完整对话历史
+    match api::dialogue_model::dialogue_model(chat_messages).await {
         Ok(response) => {
             // 添加 AI 响应消息
             conversation.messages.push(Message {

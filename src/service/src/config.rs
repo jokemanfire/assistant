@@ -1,5 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fs;
+use log;
+use once_cell::sync::Lazy;
 
 const DEFAULT_CONFIG: &str = include_str!("default.toml");
 
@@ -45,6 +48,8 @@ pub struct LocalModelConfig {
     pub n_gpu_layers: i32,
     pub ctx_size: i32,
     pub instance_count: i32,
+    pub model_type: String,
+    pub stream: bool,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
@@ -66,9 +71,66 @@ pub struct TextToSpeechConfig {
     pub model_path: Option<String>,
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
+pub struct ChatTemplateConfig {
+    pub templates: HashMap<String, ModelTemplate>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
+pub struct ModelTemplate {
+    pub user: String,
+    pub assistant: String,
+    pub system: String,
+    pub chat_template: String,
+}
+
 impl Config {
     pub fn new() -> Self {
-        toml::from_str(DEFAULT_CONFIG).unwrap()
+        let config_path = "/etc/assistant/service/config.toml";
+        
+        // Get config from file
+        if let Ok(config_str) = fs::read_to_string(config_path) {
+            if let Ok(config) = toml::from_str(&config_str) {
+                return config;
+            }
+        }
+        
+        // If failed to load, use default config
+        let default_config = include_str!("default.toml");
+        toml::from_str(default_config).unwrap_or_else(|_| {
+            log::error!("Failed to parse default config");
+            Self::default()
+        })
+    }
+}
+
+impl ChatTemplateConfig {
+    pub fn new() -> Self {
+        let template_path = "/etc/assistant/service/chat_templates.toml";
+        // Get template from file
+        if let Ok(template_str) = fs::read_to_string(template_path) {
+            if let Ok(templates) = toml::from_str(&template_str) {
+                return templates;
+            }
+        }
+        
+        // If failed to load, use default config
+        let default_templates = include_str!("chat_templates.toml");
+        toml::from_str(default_templates).unwrap_or_else(|_| {
+            log::error!("Failed to parse default chat templates");
+            Self::default()
+        })
+    }
+    
+    // Get template for specified model
+    pub fn get_template(&self, model_type: &str) -> &ModelTemplate {
+        self.templates.get(model_type).unwrap_or_else(|| {
+            // If no template for specified model, return default template
+            self.templates.get("default").unwrap_or_else(|| {
+                static DEFAULT: Lazy<ModelTemplate> = Lazy::new(|| ModelTemplate::default());
+                &DEFAULT
+            })
+        })
     }
 }
 

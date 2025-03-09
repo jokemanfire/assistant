@@ -10,6 +10,7 @@ use protos::grpc::mserver::{
 use std::error::Error;
 use tonic::{transport::Server, Request, Response, Status};
 use ttrpc::r#async::Client as TtrpcClient;
+use protobuf::Enum;
 
 pub struct GrpcService {
     server: Server,
@@ -92,7 +93,7 @@ impl ServerService for ModelService {
         request: tonic::Request<ForwardTextRequest>,
     ) -> std::result::Result<tonic::Response<ForwardTextResponse>, tonic::Status> {
         let request = request.into_inner();
-        // 创建 ttrpc client 并转发请求
+        // Create ttrpc client and forward request
         let ttrpc_addr = self
             .config
             .server
@@ -104,7 +105,11 @@ impl ServerService for ModelService {
             .map_err(|e| Status::internal(format!("Failed to connect to TTRPC server: {}", e)))?;
 
         let ttrpc_req = protos::ttrpc::model::TextRequest {
-            text: request.clone().request.unwrap().text,
+            messages: request.clone().request.unwrap().messages.iter().map(|m| protos::ttrpc::model::ChatMessage {
+                role: protos::ttrpc::model::Role::from_i32(m.role).unwrap_or(protos::ttrpc::model::Role::ROLE_USER).into(),
+                content: m.content.clone(),
+                ..Default::default()
+            }).collect::<Vec<protos::ttrpc::model::ChatMessage>>(),
             ..Default::default()
         };
 

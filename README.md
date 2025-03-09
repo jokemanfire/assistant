@@ -20,7 +20,11 @@ cd wasmedge-ggml
 rustup target add wasm32-wasi
 cargo build --target wasm32-wasi --release
 ```
-
+4. default config path
+``` sh
+mkdir -p /etc/assistant/service
+cargo run --bin service config > /etc/assistant/service/config.toml
+```
 ## Project Overview
 
 This project implements a C-S AI assistant. 
@@ -59,9 +63,12 @@ The system follows a modular client-server architecture with the following key c
 
 ### Local Model Implementation
 Use WASM to implement local models, supporting:
-- LLaMA family models
-- Models compatible with GGML quantization
-- Custom model implementations
+In Chat mode:
+- Deepseek-ai model
+- Qwen model
+In Audio mode:
+- Chatts
+- Whisper
 
 ## Usage
 

@@ -65,7 +65,7 @@ impl TtrpcService {
 impl ModelS {
     async fn forward_to_grpc(
         &self,
-        request: protos::grpc::model::TextRequest,
+        request: protos::ttrpc::model::TextRequest,
     ) -> Result<model::TextResponse, Box<dyn Error>> {
         let grpc_addr = self
             .config
@@ -81,10 +81,21 @@ impl ModelS {
         let mut client =
             protos::grpc::mserver::server_service_client::ServerServiceClient::new(channel);
 
+        // Convert messages to gRPC format
+        let grpc_messages = request.messages.iter().map(|msg| {
+            let role_val = msg.role.value();
+            protos::grpc::model::ChatMessage {
+                role: protos::grpc::model::Role::try_from(role_val)
+                    .unwrap_or(protos::grpc::model::Role::User).into(),
+                content: msg.content.clone(),
+                ..Default::default()
+            }
+        }).collect::<Vec<protos::grpc::model::ChatMessage>>();
+
         let response = client
             .process_text(Request::new(protos::grpc::mserver::ForwardTextRequest {
                 request: Some(protos::grpc::model::TextRequest {
-                    text: request.text,
+                    messages: grpc_messages,
                     ..Default::default()
                 }),
                 ..Default::default()
@@ -109,10 +120,10 @@ impl model_ttrpc::ModelService for ModelS {
         _ctx: &::ttrpc::r#async::TtrpcContext,
         req: model::TextRequest,
     ) -> ::ttrpc::Result<model::TextResponse> {
-        info!("Received text chat request: {:?}", req.text);
+        info!("Received text chat request: {:?}", req.messages);
         // try remote model if remote model fail, try local model
         if !self.chat_model.config.remote_models.is_empty() {
-            match self.chat_model.get_response_online(req.text.clone()).await {
+            match self.chat_model.get_response_online(req.messages.clone()).await {
                 Ok(response) => {
                     return Ok(model::TextResponse {
                         text: response,
@@ -143,7 +154,7 @@ impl model_ttrpc::ModelService for ModelS {
         .await
         {
             Ok(_) => {
-                let response = self.local_service.chat(req.text.clone()).await.unwrap();
+                let response = self.local_service.chat(req.messages.clone()).await.unwrap();
                 return Ok(model::TextResponse {
                     text: response,
                     ..Default::default()
@@ -159,8 +170,8 @@ impl model_ttrpc::ModelService for ModelS {
                 grpc_addr
             );
             match self
-                .forward_to_grpc(protos::grpc::model::TextRequest {
-                    text: req.text,
+                .forward_to_grpc(protos::ttrpc::model::TextRequest {
+                    messages: req.messages,
                     ..Default::default()
                 })
                 .await

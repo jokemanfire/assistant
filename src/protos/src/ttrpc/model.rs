@@ -164,12 +164,152 @@ impl ::protobuf::reflect::ProtobufValue for SpeechRequest {
     type RuntimeType = ::protobuf::reflect::rt::RuntimeTypeMessage<Self>;
 }
 
+// @@protoc_insertion_point(message:model.ChatMessage)
+#[derive(PartialEq,Clone,Default,Debug)]
+pub struct ChatMessage {
+    // message fields
+    // @@protoc_insertion_point(field:model.ChatMessage.role)
+    pub role: ::protobuf::EnumOrUnknown<Role>,
+    // @@protoc_insertion_point(field:model.ChatMessage.content)
+    pub content: ::std::string::String,
+    // special fields
+    // @@protoc_insertion_point(special_field:model.ChatMessage.special_fields)
+    pub special_fields: ::protobuf::SpecialFields,
+}
+
+impl<'a> ::std::default::Default for &'a ChatMessage {
+    fn default() -> &'a ChatMessage {
+        <ChatMessage as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl ChatMessage {
+    pub fn new() -> ChatMessage {
+        ::std::default::Default::default()
+    }
+
+    fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
+        let mut fields = ::std::vec::Vec::with_capacity(2);
+        let mut oneofs = ::std::vec::Vec::with_capacity(0);
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "role",
+            |m: &ChatMessage| { &m.role },
+            |m: &mut ChatMessage| { &mut m.role },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "content",
+            |m: &ChatMessage| { &m.content },
+            |m: &mut ChatMessage| { &mut m.content },
+        ));
+        ::protobuf::reflect::GeneratedMessageDescriptorData::new_2::<ChatMessage>(
+            "ChatMessage",
+            fields,
+            oneofs,
+        )
+    }
+}
+
+impl ::protobuf::Message for ChatMessage {
+    const NAME: &'static str = "ChatMessage";
+
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+        while let Some(tag) = is.read_raw_tag_or_eof()? {
+            match tag {
+                8 => {
+                    self.role = is.read_enum_or_unknown()?;
+                },
+                18 => {
+                    self.content = is.read_string()?;
+                },
+                tag => {
+                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u64 {
+        let mut my_size = 0;
+        if self.role != ::protobuf::EnumOrUnknown::new(Role::ROLE_UNSPECIFIED) {
+            my_size += ::protobuf::rt::int32_size(1, self.role.value());
+        }
+        if !self.content.is_empty() {
+            my_size += ::protobuf::rt::string_size(2, &self.content);
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+        self.special_fields.cached_size().set(my_size as u32);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        if self.role != ::protobuf::EnumOrUnknown::new(Role::ROLE_UNSPECIFIED) {
+            os.write_enum(1, ::protobuf::EnumOrUnknown::value(&self.role))?;
+        }
+        if !self.content.is_empty() {
+            os.write_string(2, &self.content)?;
+        }
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn special_fields(&self) -> &::protobuf::SpecialFields {
+        &self.special_fields
+    }
+
+    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+        &mut self.special_fields
+    }
+
+    fn new() -> ChatMessage {
+        ChatMessage::new()
+    }
+
+    fn clear(&mut self) {
+        self.role = ::protobuf::EnumOrUnknown::new(Role::ROLE_UNSPECIFIED);
+        self.content.clear();
+        self.special_fields.clear();
+    }
+
+    fn default_instance() -> &'static ChatMessage {
+        static instance: ChatMessage = ChatMessage {
+            role: ::protobuf::EnumOrUnknown::from_i32(0),
+            content: ::std::string::String::new(),
+            special_fields: ::protobuf::SpecialFields::new(),
+        };
+        &instance
+    }
+}
+
+impl ::protobuf::MessageFull for ChatMessage {
+    fn descriptor() -> ::protobuf::reflect::MessageDescriptor {
+        static descriptor: ::protobuf::rt::Lazy<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::Lazy::new();
+        descriptor.get(|| file_descriptor().message_by_package_relative_name("ChatMessage").unwrap()).clone()
+    }
+}
+
+impl ::std::fmt::Display for ChatMessage {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for ChatMessage {
+    type RuntimeType = ::protobuf::reflect::rt::RuntimeTypeMessage<Self>;
+}
+
 // @@protoc_insertion_point(message:model.TextRequest)
 #[derive(PartialEq,Clone,Default,Debug)]
 pub struct TextRequest {
     // message fields
-    // @@protoc_insertion_point(field:model.TextRequest.text)
-    pub text: ::std::string::String,
+    // @@protoc_insertion_point(field:model.TextRequest.messages)
+    pub messages: ::std::vec::Vec<ChatMessage>,
     // special fields
     // @@protoc_insertion_point(special_field:model.TextRequest.special_fields)
     pub special_fields: ::protobuf::SpecialFields,
@@ -189,10 +329,10 @@ impl TextRequest {
     fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
         let mut fields = ::std::vec::Vec::with_capacity(1);
         let mut oneofs = ::std::vec::Vec::with_capacity(0);
-        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
-            "text",
-            |m: &TextRequest| { &m.text },
-            |m: &mut TextRequest| { &mut m.text },
+        fields.push(::protobuf::reflect::rt::v2::make_vec_simpler_accessor::<_, _>(
+            "messages",
+            |m: &TextRequest| { &m.messages },
+            |m: &mut TextRequest| { &mut m.messages },
         ));
         ::protobuf::reflect::GeneratedMessageDescriptorData::new_2::<TextRequest>(
             "TextRequest",
@@ -213,7 +353,7 @@ impl ::protobuf::Message for TextRequest {
         while let Some(tag) = is.read_raw_tag_or_eof()? {
             match tag {
                 10 => {
-                    self.text = is.read_string()?;
+                    self.messages.push(is.read_message()?);
                 },
                 tag => {
                     ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
@@ -227,18 +367,19 @@ impl ::protobuf::Message for TextRequest {
     #[allow(unused_variables)]
     fn compute_size(&self) -> u64 {
         let mut my_size = 0;
-        if !self.text.is_empty() {
-            my_size += ::protobuf::rt::string_size(1, &self.text);
-        }
+        for value in &self.messages {
+            let len = value.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        };
         my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
         self.special_fields.cached_size().set(my_size as u32);
         my_size
     }
 
     fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
-        if !self.text.is_empty() {
-            os.write_string(1, &self.text)?;
-        }
+        for v in &self.messages {
+            ::protobuf::rt::write_message_field_with_cached_size(1, v, os)?;
+        };
         os.write_unknown_fields(self.special_fields.unknown_fields())?;
         ::std::result::Result::Ok(())
     }
@@ -256,13 +397,13 @@ impl ::protobuf::Message for TextRequest {
     }
 
     fn clear(&mut self) {
-        self.text.clear();
+        self.messages.clear();
         self.special_fields.clear();
     }
 
     fn default_instance() -> &'static TextRequest {
         static instance: TextRequest = TextRequest {
-            text: ::std::string::String::new(),
+            messages: ::std::vec::Vec::new(),
             special_fields: ::protobuf::SpecialFields::new(),
         };
         &instance
@@ -548,17 +689,94 @@ impl ::protobuf::reflect::ProtobufValue for SpeechResponse {
     type RuntimeType = ::protobuf::reflect::rt::RuntimeTypeMessage<Self>;
 }
 
+#[derive(Clone,Copy,PartialEq,Eq,Debug,Hash)]
+// @@protoc_insertion_point(enum:model.Role)
+pub enum Role {
+    // @@protoc_insertion_point(enum_value:model.Role.ROLE_UNSPECIFIED)
+    ROLE_UNSPECIFIED = 0,
+    // @@protoc_insertion_point(enum_value:model.Role.ROLE_SYSTEM)
+    ROLE_SYSTEM = 1,
+    // @@protoc_insertion_point(enum_value:model.Role.ROLE_USER)
+    ROLE_USER = 2,
+    // @@protoc_insertion_point(enum_value:model.Role.ROLE_ASSISTANT)
+    ROLE_ASSISTANT = 3,
+}
+
+impl ::protobuf::Enum for Role {
+    const NAME: &'static str = "Role";
+
+    fn value(&self) -> i32 {
+        *self as i32
+    }
+
+    fn from_i32(value: i32) -> ::std::option::Option<Role> {
+        match value {
+            0 => ::std::option::Option::Some(Role::ROLE_UNSPECIFIED),
+            1 => ::std::option::Option::Some(Role::ROLE_SYSTEM),
+            2 => ::std::option::Option::Some(Role::ROLE_USER),
+            3 => ::std::option::Option::Some(Role::ROLE_ASSISTANT),
+            _ => ::std::option::Option::None
+        }
+    }
+
+    fn from_str(str: &str) -> ::std::option::Option<Role> {
+        match str {
+            "ROLE_UNSPECIFIED" => ::std::option::Option::Some(Role::ROLE_UNSPECIFIED),
+            "ROLE_SYSTEM" => ::std::option::Option::Some(Role::ROLE_SYSTEM),
+            "ROLE_USER" => ::std::option::Option::Some(Role::ROLE_USER),
+            "ROLE_ASSISTANT" => ::std::option::Option::Some(Role::ROLE_ASSISTANT),
+            _ => ::std::option::Option::None
+        }
+    }
+
+    const VALUES: &'static [Role] = &[
+        Role::ROLE_UNSPECIFIED,
+        Role::ROLE_SYSTEM,
+        Role::ROLE_USER,
+        Role::ROLE_ASSISTANT,
+    ];
+}
+
+impl ::protobuf::EnumFull for Role {
+    fn enum_descriptor() -> ::protobuf::reflect::EnumDescriptor {
+        static descriptor: ::protobuf::rt::Lazy<::protobuf::reflect::EnumDescriptor> = ::protobuf::rt::Lazy::new();
+        descriptor.get(|| file_descriptor().enum_by_package_relative_name("Role").unwrap()).clone()
+    }
+
+    fn descriptor(&self) -> ::protobuf::reflect::EnumValueDescriptor {
+        let index = *self as usize;
+        Self::enum_descriptor().value_by_index(index)
+    }
+}
+
+impl ::std::default::Default for Role {
+    fn default() -> Self {
+        Role::ROLE_UNSPECIFIED
+    }
+}
+
+impl Role {
+    fn generated_enum_descriptor_data() -> ::protobuf::reflect::GeneratedEnumDescriptorData {
+        ::protobuf::reflect::GeneratedEnumDescriptorData::new::<Role>("Role")
+    }
+}
+
 static file_descriptor_proto_data: &'static [u8] = b"\
     \n\x0bmodel.proto\x12\x05model\"Q\n\rSpeechRequest\x12\x1d\n\naudio_data\
     \x18\x01\x20\x01(\tR\taudioData\x12!\n\x0caudio_format\x18\x02\x20\x01(\
-    \tR\x0baudioFormat\"!\n\x0bTextRequest\x12\x12\n\x04text\x18\x01\x20\x01\
-    (\tR\x04text\"\"\n\x0cTextResponse\x12\x12\n\x04text\x18\x01\x20\x01(\tR\
-    \x04text\"R\n\x0eSpeechResponse\x12\x1d\n\naudio_data\x18\x01\x20\x01(\t\
-    R\taudioData\x12!\n\x0caudio_format\x18\x02\x20\x01(\tR\x0baudioFormat2\
-    \xb9\x01\n\x0cModelService\x129\n\x0cSpeechToText\x12\x14.model.SpeechRe\
-    quest\x1a\x13.model.TextResponse\x123\n\x08TextChat\x12\x12.model.TextRe\
-    quest\x1a\x13.model.TextResponse\x129\n\x0cTextToSpeech\x12\x12.model.Te\
-    xtRequest\x1a\x15.model.SpeechResponseb\x06proto3\
+    \tR\x0baudioFormat\"H\n\x0bChatMessage\x12\x1f\n\x04role\x18\x01\x20\x01\
+    (\x0e2\x0b.model.RoleR\x04role\x12\x18\n\x07content\x18\x02\x20\x01(\tR\
+    \x07content\"=\n\x0bTextRequest\x12.\n\x08messages\x18\x01\x20\x03(\x0b2\
+    \x12.model.ChatMessageR\x08messages\"\"\n\x0cTextResponse\x12\x12\n\x04t\
+    ext\x18\x01\x20\x01(\tR\x04text\"R\n\x0eSpeechResponse\x12\x1d\n\naudio_\
+    data\x18\x01\x20\x01(\tR\taudioData\x12!\n\x0caudio_format\x18\x02\x20\
+    \x01(\tR\x0baudioFormat*P\n\x04Role\x12\x14\n\x10ROLE_UNSPECIFIED\x10\0\
+    \x12\x0f\n\x0bROLE_SYSTEM\x10\x01\x12\r\n\tROLE_USER\x10\x02\x12\x12\n\
+    \x0eROLE_ASSISTANT\x10\x032\xb9\x01\n\x0cModelService\x129\n\x0cSpeechTo\
+    Text\x12\x14.model.SpeechRequest\x1a\x13.model.TextResponse\x123\n\x08Te\
+    xtChat\x12\x12.model.TextRequest\x1a\x13.model.TextResponse\x129\n\x0cTe\
+    xtToSpeech\x12\x12.model.TextRequest\x1a\x15.model.SpeechResponseb\x06pr\
+    oto3\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file
@@ -576,12 +794,14 @@ pub fn file_descriptor() -> &'static ::protobuf::reflect::FileDescriptor {
     file_descriptor.get(|| {
         let generated_file_descriptor = generated_file_descriptor_lazy.get(|| {
             let mut deps = ::std::vec::Vec::with_capacity(0);
-            let mut messages = ::std::vec::Vec::with_capacity(4);
+            let mut messages = ::std::vec::Vec::with_capacity(5);
             messages.push(SpeechRequest::generated_message_descriptor_data());
+            messages.push(ChatMessage::generated_message_descriptor_data());
             messages.push(TextRequest::generated_message_descriptor_data());
             messages.push(TextResponse::generated_message_descriptor_data());
             messages.push(SpeechResponse::generated_message_descriptor_data());
-            let mut enums = ::std::vec::Vec::with_capacity(0);
+            let mut enums = ::std::vec::Vec::with_capacity(1);
+            enums.push(Role::generated_enum_descriptor_data());
             ::protobuf::reflect::GeneratedFileDescriptor::new_generated(
                 file_descriptor_proto(),
                 deps,

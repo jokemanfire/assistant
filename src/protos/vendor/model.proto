@@ -9,9 +9,19 @@ message SpeechRequest {
   string audio_format = 2; 
 }
 
+enum Role {
+  ROLE_UNSPECIFIED = 0;
+  ROLE_SYSTEM = 1;
+  ROLE_USER = 2;
+  ROLE_ASSISTANT = 3;
+}
+message ChatMessage{
+  Role role = 1;
+  string content = 2;
+}
 
 message TextRequest {
-  string text = 1;  
+  repeated ChatMessage messages = 1;
 }
 
 

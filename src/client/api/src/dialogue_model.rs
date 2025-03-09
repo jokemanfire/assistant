@@ -1,4 +1,4 @@
-use protos::ttrpc::{model,model_ttrpc};
+use protos::ttrpc::{model::{self, ChatMessage},model_ttrpc};
 use std::{error::Error, time::Duration};
 use ttrpc::{
     asynchronous::Client,
@@ -16,14 +16,14 @@ fn default_ctx() -> Context {
     ctx
 }
 
-pub async fn dialogue_model(input_text: String) -> Result<String, Box<dyn Error>> {
+pub async fn dialogue_model(input_text: Vec<ChatMessage>) -> Result<String, Box<dyn Error>> {
     let client = Client::connect(DIALOGUE_MODEL_API_URL)?;
     let ttrpc_client = model_ttrpc::ModelServiceClient::new(client);
     let req = model::TextRequest {
-        text: input_text.to_string(),
+        messages: input_text,
         ..Default::default()
     };
-    println!("Sending text chat request: {:?}", req.text);
+    println!("Sending text chat request: {:?}", req.messages);
     let output = ttrpc_client.text_chat(default_ctx(), &req).await?;
     println!("Received text chat response: {:?}", output.text);
     Ok(output.text)
@@ -31,6 +31,7 @@ pub async fn dialogue_model(input_text: String) -> Result<String, Box<dyn Error>
 #[cfg(test)]
 mod tests {
     use super::*;
+    use protos::ttrpc::model::Role;
     use tokio;
 
     #[tokio::test]
@@ -41,7 +42,11 @@ mod tests {
 
             let ttrpc_client = model_ttrpc::ModelServiceClient::new(client);
             let req = model::TextRequest {
-                text: text.to_string(),
+                messages: vec![ChatMessage {
+                    role: Role::ROLE_USER.into(),
+                    content: text.to_string(),
+                    ..Default::default()
+                }],
                 ..Default::default()
             };
 
