@@ -300,8 +300,8 @@ impl ChatApp {
 
             conversation.messages.push(user_message);
 
-            // 创建用于发送的消息
-            let message_to_send = self.input_text.clone();
+            // 清空输入框并设置发送状态
+            let input_text = self.input_text.clone();
             self.input_text.clear();
             *self.is_sending.lock().unwrap() = true;
 
@@ -309,9 +309,28 @@ impl ChatApp {
             let conversation_id = self.current_conversation_id.clone();
             let conversations = Arc::clone(&self.conversations);
             let is_sending = Arc::clone(&self.is_sending);
-            // 使用 tokio 运行异步任务
+            
+            // 将整个对话历史转换为ChatMessage格式
+            let chat_messages = conversation.messages.iter().map(|msg| {
+                // 转换角色字符串为Role枚举
+                let role = match msg.role.as_str() {
+                    "user" => protos::ttrpc::model::Role::ROLE_USER,
+                    "assistant" => protos::ttrpc::model::Role::ROLE_ASSISTANT,
+                    "system" => protos::ttrpc::model::Role::ROLE_SYSTEM,
+                    _ => protos::ttrpc::model::Role::ROLE_USER, // 默认为用户
+                };
+                
+                // 创建ChatMessage
+                protos::ttrpc::model::ChatMessage {
+                    role: role.into(),
+                    content: msg.content.clone(),
+                    ..Default::default()
+                }
+            }).collect::<Vec<_>>();
+            
+            // 使用 tokio 运行异步任务，传递完整对话历史
             self.runtime.spawn(async move {
-                match dialogue_model(message_to_send).await {
+                match dialogue_model(chat_messages).await {
                     Ok(response) => {
                         let mut conversations = conversations.lock().unwrap();
                         if let Some(conversation) =
@@ -330,6 +349,7 @@ impl ChatApp {
                     }
                     Err(e) => {
                         eprintln!("Error sending message: {:?}", e);
+                        *is_sending.lock().unwrap() = false;
                     }
                 }
             });

@@ -2014,6 +2014,7 @@ version = "0.1.0"
 dependencies = [
  "api",
  "eframe",
+ "protos",
  "reqwest",
  "serde",
  "serde_json",
