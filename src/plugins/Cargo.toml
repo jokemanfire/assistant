@@ -1,0 +1,25 @@
+[package]
+name = "assistant-plugins"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+protos = { path = "../protos" }
+assistant-service = { path = "../service", optional = true }
+tokio = { workspace = true, features = ["full"] }
+axum = "0.7.4"
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = "1.0"
+log = "0.4.6"
+tower-http = { version = "0.5.0", features = ["cors", "trace"] }
+async-trait = { workspace = true }
+thiserror = { workspace = true }
+reqwest = { version = "0.12", features = ["json"] }
+tower = "0.4"
+http = "1.0"
+uuid = { version = "1.0", features = ["v4"] }
+
+[features]
+default = []
+http_api = ["assistant-service"] 

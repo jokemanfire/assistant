@@ -34,12 +34,59 @@ struct ServerServiceImpl {
 }
 
 // Model service implementation
-struct ModelServiceImpl {
+pub struct ModelServiceImpl {
     chat_model: DialogueModel,
     voice_model: VoiceModel,
     speech_model: SpeechModel,
     local_service: Arc<crate::service::localservice::LocalService>,
     config: Config,
+}
+
+impl ModelServiceImpl {
+    /// 内部方法，供插件直接调用
+    pub async fn text_chat_internal(&self, messages: Vec<ChatMessage>) -> Result<String, Status> {
+        // 尝试远程模型
+        if !self.config.chat_model.remote_models.is_empty() {
+            match self.chat_model.get_response_online(messages.clone()).await {
+                Ok(response) => {
+                    return Ok(response);
+                }
+                Err(e) => warn!("Remote model failed: {}", e),
+            }
+        }
+
+        debug!("No remote model or remote failed, trying local model");
+        // 尝试本地模型
+        match timeout(
+            Duration::from_secs(AVAILABLE_RUNNERS_TIMEOUT),
+            // 在available_timeout内获取可用的runners
+            {
+                let local_service = self.local_service.clone();
+                tokio::spawn(async move {
+                    loop {
+                        let available_runners = local_service.available_runners().await;
+                        if available_runners > 0 {
+                            break;
+                        }
+                        tokio::time::sleep(Duration::from_millis(100)).await;
+                    }
+                })
+            },
+        )
+        .await
+        {
+            Ok(_) => match self.local_service.chat(messages.clone()).await {
+                Ok(response) => {
+                    return Ok(response);
+                }
+                Err(e) => warn!("Local model processing failed: {}", e),
+            },
+            Err(e) => warn!("No local model available: {}", e),
+        }
+
+        // 如果所有尝试都失败
+        Err(Status::internal("All processing attempts failed"))
+    }
 }
 
 #[tonic::async_trait]
@@ -347,6 +394,34 @@ impl GrpcService {
             config,
             uuid,
         })
+    }
+
+    /// 获取模型服务实例，供插件使用
+    pub async fn get_model_service(&self) -> Result<Arc<ModelServiceImpl>, Box<dyn Error>> {
+        // 创建本地服务
+        let local_service = Arc::new(
+            crate::service::localservice::LocalService::new(
+                self.config.chat_model.local_models.clone(),
+            )
+            .await,
+        );
+
+        // 创建模型服务
+        let model_service = Arc::new(ModelServiceImpl {
+            chat_model: DialogueModel {
+                config: self.config.chat_model.clone(),
+            },
+            voice_model: VoiceModel {
+                config: self.config.chat_voice.clone(),
+            },
+            speech_model: SpeechModel {
+                config: self.config.voice_chat.clone(),
+            },
+            local_service,
+            config: self.config.clone(),
+        });
+
+        Ok(model_service)
     }
 
     pub async fn start(&mut self) -> Result<(), Box<dyn Error>> {
