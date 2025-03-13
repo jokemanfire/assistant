@@ -2,42 +2,50 @@ syntax = "proto3";
 
 package model;
 
-
-
+// Speech recognition request
 message SpeechRequest {
-  string audio_data = 1;  
-  string audio_format = 2; 
+  string audio_data = 1;  // Base64 encoded audio data
+  string audio_format = 2; // Format of the audio (e.g., "wav", "mp3")
 }
 
+// Role enumeration for chat messages
 enum Role {
   ROLE_UNSPECIFIED = 0;
   ROLE_SYSTEM = 1;
   ROLE_USER = 2;
   ROLE_ASSISTANT = 3;
 }
+
+// Chat message structure
 message ChatMessage{
   Role role = 1;
   string content = 2;
 }
 
+// Text request containing a sequence of chat messages
 message TextRequest {
   repeated ChatMessage messages = 1;
 }
 
-
+// Text response from the model
 message TextResponse {
-  string text = 1;  
+  string text = 1;  // Generated text response
 }
 
-
+// Speech synthesis response
 message SpeechResponse {
-  string audio_data = 1;
-  string audio_format = 2; 
+  string audio_data = 1; // Base64 encoded audio data
+  string audio_format = 2; // Format of the audio (e.g., "wav", "mp3")
 }
 
-
+// Model service definition
 service ModelService {
+  // Convert speech to text
   rpc SpeechToText (SpeechRequest) returns (TextResponse);
+  
+  // Process text chat and generate response
   rpc TextChat (TextRequest) returns (TextResponse);
+  
+  // Convert text to speech
   rpc TextToSpeech (TextRequest) returns (SpeechResponse);
 }

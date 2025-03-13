@@ -1,5 +1,5 @@
 use log::{debug, error, info};
-use std::{env, error::Error, fs, process::exit, sync::Arc};
+use std::{env, error::Error, process::exit, sync::Arc};
 use tokio::{signal::unix::signal, sync::Mutex};
 pub mod config;
 pub mod local;
@@ -7,39 +7,27 @@ pub mod modeldeal;
 pub mod service;
 
 pub struct MainServer {
-    ttrpc_service: Arc<Mutex<service::ttrpcservice::TtrpcService>>,
     grpc_service: Arc<Mutex<service::grpcservice::GrpcService>>,
 }
 
 impl MainServer {
     pub async fn new() -> Result<Self, Box<dyn Error>> {
         let config = config::Config::new();
-        debug!("Creating local service");
-        let local_service = Arc::new(
-            service::localservice::LocalService::new(config.dialogue_model.local_models.clone())
-                .await,
-        );
         debug!("Creating grpc service");
-        let grpc_service = Arc::new(Mutex::new(service::grpcservice::GrpcService::new(config.clone()).await?));
-        debug!("Creating ttrpc service");
-        let ttrpc_service = Arc::new(Mutex::new(
-            service::ttrpcservice::TtrpcService::new(config.clone(), local_service.clone()).await?,
+        let grpc_service = Arc::new(Mutex::new(
+            service::grpcservice::GrpcService::new(config.clone()).await?,
         ));
 
-        Ok(Self {
-            ttrpc_service,
-            grpc_service,
-        })
+        Ok(Self { grpc_service })
     }
 
     pub async fn run(&mut self) -> Result<(), Box<dyn Error>> {
         // start all services
-        self.ttrpc_service.lock().await.start().await?;
         self.grpc_service.lock().await.start().await?;
         let mut interrupt = signal(tokio::signal::unix::SignalKind::interrupt())?;
         info!("All servers started");
         interrupt.recv().await;
-        self.ttrpc_service.lock().await.shutdown().await?;
+        // Graceful shutdown can be implemented here if needed
         Ok(())
     }
 }

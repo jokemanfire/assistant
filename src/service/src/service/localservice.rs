@@ -1,5 +1,5 @@
 use log::debug;
-use protos::ttrpc::model::ChatMessage;
+use protos::grpc::model::ChatMessage;
 
 use crate::config::LocalModelConfig;
 use crate::local::manager::ModelManager;

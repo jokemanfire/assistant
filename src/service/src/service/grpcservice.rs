@@ -1,6 +1,11 @@
-use crate::config::Config;
-use log::{info, warn};
-use protos::grpc::model::{TextRequest, TextResponse};
+use crate::modeldeal::chat::DialogueModel;
+use crate::modeldeal::chat_voice::VoiceModel;
+use crate::{config::Config, modeldeal::voice_chat::SpeechModel};
+use log::{debug, info, warn};
+use protos::grpc::model::{
+    model_service_server::{ModelService as GrpcModelService, ModelServiceServer},
+    ChatMessage, SpeechRequest, SpeechResponse, TextRequest, TextResponse,
+};
 use protos::grpc::mserver::server_service_client::ServerServiceClient;
 use protos::grpc::mserver::server_service_server::{ServerService, ServerServiceServer};
 use protos::grpc::mserver::{
@@ -8,9 +13,13 @@ use protos::grpc::mserver::{
     ModelStatusResponse,
 };
 use std::error::Error;
+use std::sync::Arc;
+use std::time::Duration;
+use tokio::time::timeout;
 use tonic::{transport::Server, Request, Response, Status};
-use ttrpc::r#async::Client as TtrpcClient;
-use protobuf::Enum;
+
+// Constant for timeout when checking for available runners
+const AVAILABLE_RUNNERS_TIMEOUT: u64 = 1;
 
 pub struct GrpcService {
     server: Server,
@@ -18,34 +27,131 @@ pub struct GrpcService {
     uuid: String,
 }
 
-struct ModelService {
+// Server service implementation
+struct ServerServiceImpl {
     config: Config,
     uuid: String,
 }
 
+// Model service implementation
+struct ModelServiceImpl {
+    chat_model: DialogueModel,
+    voice_model: VoiceModel,
+    speech_model: SpeechModel,
+    local_service: Arc<crate::service::localservice::LocalService>,
+    config: Config,
+}
+
 #[tonic::async_trait]
-impl ServerService for ModelService {
+impl GrpcModelService for ModelServiceImpl {
+    // Speech to text conversion
+    async fn speech_to_text(
+        &self,
+        _request: Request<SpeechRequest>,
+    ) -> Result<Response<TextResponse>, Status> {
+        // Currently just returns an empty response
+        Ok(Response::new(TextResponse::default()))
+    }
+
+    // Text to speech conversion
+    async fn text_to_speech(
+        &self,
+        _request: Request<TextRequest>,
+    ) -> Result<Response<SpeechResponse>, Status> {
+        // Currently just returns an empty response
+        Ok(Response::new(SpeechResponse::default()))
+    }
+
+    // Process text chat and generate response
+    async fn text_chat(
+        &self,
+        request: Request<TextRequest>,
+    ) -> Result<Response<TextResponse>, Status> {
+        let req = request.into_inner();
+        info!("Received text chat request: {:?}", req.messages);
+
+        // Try remote model first if configured
+        if !self.chat_model.config.remote_models.is_empty() {
+            match self
+                .chat_model
+                .get_response_online(req.messages.clone())
+                .await
+            {
+                Ok(response) => {
+                    return Ok(Response::new(TextResponse {
+                        text: response,
+                        ..Default::default()
+                    }));
+                }
+                Err(e) => warn!("Remote model failed: {}", e),
+            }
+        }
+
+        debug!("No remote model or remote failed, trying local model");
+        // Try local model
+        match timeout(
+            Duration::from_secs(AVAILABLE_RUNNERS_TIMEOUT),
+            // Get available runners in available_timeout
+            {
+                let local_service = self.local_service.clone();
+                tokio::spawn(async move {
+                    loop {
+                        let available_runners = local_service.available_runners().await;
+                        if available_runners > 0 {
+                            break;
+                        }
+                        tokio::time::sleep(Duration::from_millis(100)).await;
+                    }
+                })
+            },
+        )
+        .await
+        {
+            Ok(_) => match self.local_service.chat(req.messages.clone()).await {
+                Ok(response) => {
+                    return Ok(Response::new(TextResponse {
+                        text: response,
+                        ..Default::default()
+                    }));
+                }
+                Err(e) => warn!("Local model processing failed: {}", e),
+            },
+            Err(e) => warn!("No local model available: {}", e),
+        }
+
+        // If all attempts fail
+        Err(Status::internal("All processing attempts failed"))
+    }
+}
+
+#[tonic::async_trait]
+impl ServerService for ServerServiceImpl {
     async fn query_models(
         &self,
         _request: tonic::Request<Empty>,
     ) -> std::result::Result<tonic::Response<ModelListResponse>, tonic::Status> {
         use protos::grpc::mserver::ModelInfo;
-        
+
         // Get models from both local and remote configurations
         let mut models = Vec::new();
-        
+
         // Add local models
-        for model in &self.config.dialogue_model.local_models {
+        for model in &self.config.chat_model.local_models {
             models.push(ModelInfo {
                 model_id: model.model_path.clone(),
-                name: model.model_path.split('/').last().unwrap_or("unknown").to_string(),
+                name: model
+                    .model_path
+                    .split('/')
+                    .last()
+                    .unwrap_or("unknown")
+                    .to_string(),
                 description: format!("Local model with {} GPU layers", model.n_gpu_layers),
                 status: if model.enabled { 2 } else { 0 }, // 2 = Ready, 0 = Unknown
             });
         }
 
         // Add remote models
-        for model in &self.config.dialogue_model.remote_models {
+        for model in &self.config.chat_model.remote_models {
             models.push(ModelInfo {
                 model_id: model.model_name.clone(),
                 name: model.model_name.clone(),
@@ -63,11 +169,15 @@ impl ServerService for ModelService {
         request: tonic::Request<ModelStatusRequest>,
     ) -> std::result::Result<tonic::Response<ModelStatusResponse>, tonic::Status> {
         let request = request.into_inner();
-        
+
         // Check local models first
-        if let Some(model) = self.config.dialogue_model.local_models
+        if let Some(model) = self
+            .config
+            .chat_model
+            .local_models
             .iter()
-            .find(|m| m.model_path == request.model_id) {
+            .find(|m| m.model_path == request.model_id)
+        {
             return Ok(Response::new(ModelStatusResponse {
                 status: if model.enabled { 2 } else { 0 }, // 2 = Ready, 0 = Unknown
                 error: String::new(),
@@ -75,16 +185,23 @@ impl ServerService for ModelService {
         }
 
         // Then check remote models
-        if let Some(model) = self.config.dialogue_model.remote_models
+        if let Some(model) = self
+            .config
+            .chat_model
+            .remote_models
             .iter()
-            .find(|m| m.model_name == request.model_id) {
+            .find(|m| m.model_name == request.model_id)
+        {
             return Ok(Response::new(ModelStatusResponse {
                 status: if model.enabled { 2 } else { 0 }, // 2 = Ready, 0 = Unknown
                 error: String::new(),
             }));
         }
 
-        Err(Status::not_found(format!("Model {} not found", request.model_id)))
+        Err(Status::not_found(format!(
+            "Model {} not found",
+            request.model_id
+        )))
     }
 
     /// Process text request, supports forwarding
@@ -93,49 +210,56 @@ impl ServerService for ModelService {
         request: tonic::Request<ForwardTextRequest>,
     ) -> std::result::Result<tonic::Response<ForwardTextResponse>, tonic::Status> {
         let request = request.into_inner();
-        // Create ttrpc client and forward request
-        let ttrpc_addr = self
-            .config
-            .server
-            .ttrpc_addr
-            .as_ref()
-            .ok_or_else(|| Status::internal("TTRPC address not configured"))?;
 
-        let client = TtrpcClient::connect(ttrpc_addr)
-            .map_err(|e| Status::internal(format!("Failed to connect to TTRPC server: {}", e)))?;
+        // Check if we have a local model service to handle this
+        if let Some(text_request) = &request.request {
+            // Create a new model service instance
+            let local_service = Arc::new(
+                crate::service::localservice::LocalService::new(
+                    self.config.chat_model.local_models.clone(),
+                )
+                .await,
+            );
 
-        let ttrpc_req = protos::ttrpc::model::TextRequest {
-            messages: request.clone().request.unwrap().messages.iter().map(|m| protos::ttrpc::model::ChatMessage {
-                role: protos::ttrpc::model::Role::from_i32(m.role).unwrap_or(protos::ttrpc::model::Role::ROLE_USER).into(),
-                content: m.content.clone(),
-                ..Default::default()
-            }).collect::<Vec<protos::ttrpc::model::ChatMessage>>(),
-            ..Default::default()
-        };
+            let model_service = ModelServiceImpl {
+                chat_model: DialogueModel {
+                    config: self.config.chat_model.clone(),
+                },
+                voice_model: VoiceModel {
+                    config: self.config.chat_voice.clone(),
+                },
+                speech_model: SpeechModel {
+                    config: self.config.voice_chat.clone(),
+                },
+                local_service,
+                config: self.config.clone(),
+            };
 
-        let ttrpc_svc = protos::ttrpc::model_ttrpc::ModelServiceClient::new(client);
-        match ttrpc_svc
-            .text_chat(ttrpc::context::Context::default(), &ttrpc_req)
-            .await
-        {
-            Ok(response) => Ok(Response::new(ForwardTextResponse {
-                response: Some(TextResponse {
-                    text: response.text,
-                    ..Default::default()
-                }),
-                route_uuids: vec![],
-                ..Default::default()
-            })),
-            Err(e) => {
-                warn!("TTRPC forward failed: {}", e);
-                // 如果 TTRPC 失败，尝试转发到远程服务器
-                self.try_remote_servers(request).await
+            // Process the request locally
+            match model_service
+                .text_chat(Request::new(text_request.clone()))
+                .await
+            {
+                Ok(response) => {
+                    return Ok(Response::new(ForwardTextResponse {
+                        response: Some(response.into_inner()),
+                        route_uuids: vec![self.uuid.clone()],
+                        error: String::new(),
+                    }));
+                }
+                Err(_) => {
+                    // If local processing fails, try remote servers
+                    return self.try_remote_servers(request).await;
+                }
             }
         }
+
+        // If no text request is provided
+        Err(Status::invalid_argument("No text request provided"))
     }
 }
 
-impl ModelService {
+impl ServerServiceImpl {
     async fn try_remote_servers(
         &self,
         request: ForwardTextRequest,
@@ -172,17 +296,20 @@ impl ModelService {
                 self.config.remote_server.timeout.unwrap_or(5000),
             ))
             .connect()
-            .await.unwrap();
+            .await?;
 
         // Create client
         let mut client = ServerServiceClient::new(channel);
 
         let mut parameters = request.parameters.clone();
-  
+
         if let Some(try_max_time) = request.parameters.get("try_max_time") {
             parameters.insert("try_max_time".to_string(), try_max_time.clone());
         } else {
-            parameters.insert("try_max_time".to_string(), self.config.server.try_max_time.unwrap_or(3).to_string());
+            parameters.insert(
+                "try_max_time".to_string(),
+                self.config.server.try_max_time.unwrap_or(3).to_string(),
+            );
         }
         if !request.route_uuids.contains(&self.uuid) {
             request.route_uuids.push(self.uuid.clone());
@@ -191,16 +318,22 @@ impl ModelService {
             Some(try_time) => {
                 //try_time +1
                 (try_time.parse::<u32>().unwrap() + 1).to_string()
-            },
+            }
             None => "1".to_string(),
         };
         //check try_time
-        if try_time.parse::<u32>().unwrap() >  parameters.get("try_max_time").unwrap().parse::<u32>().unwrap() {
+        if try_time.parse::<u32>().unwrap()
+            > parameters
+                .get("try_max_time")
+                .unwrap()
+                .parse::<u32>()
+                .unwrap()
+        {
             return Err(Box::new(Status::unavailable("Try time out")));
         }
         request.parameters = parameters;
 
-        let response = client.process_text(request).await.unwrap();
+        let response = client.process_text(request).await?;
         Ok(response)
     }
 }
@@ -209,7 +342,11 @@ impl GrpcService {
     pub async fn new(config: Config) -> Result<Self, Box<dyn Error>> {
         let server = Server::builder();
         let uuid = uuid::Uuid::new_v4().to_string();
-        Ok(Self { server, config, uuid})
+        Ok(Self {
+            server,
+            config,
+            uuid,
+        })
     }
 
     pub async fn start(&mut self) -> Result<(), Box<dyn Error>> {
@@ -221,17 +358,40 @@ impl GrpcService {
             .ok_or("Missing gRPC address")?
             .parse()?;
 
-        let model_service = ModelService {
+        // Create server service implementation
+        let server_service = ServerServiceImpl {
             config: self.config.clone(),
             uuid: self.uuid.clone(),
         };
 
+        // Create model service implementation
+        let local_service = Arc::new(
+            crate::service::localservice::LocalService::new(
+                self.config.chat_model.local_models.clone(),
+            )
+            .await,
+        );
+
+        let model_service = ModelServiceImpl {
+            chat_model: DialogueModel {
+                config: self.config.chat_model.clone(),
+            },
+            voice_model: VoiceModel {
+                config: self.config.chat_voice.clone(),
+            },
+            speech_model: SpeechModel {
+                config: self.config.voice_chat.clone(),
+            },
+            local_service,
+            config: self.config.clone(),
+        };
+
         info!("Starting gRPC server on {}", addr);
         self.server
-            .add_service(ServerServiceServer::new(model_service))
+            .add_service(ServerServiceServer::new(server_service))
+            .add_service(ModelServiceServer::new(model_service))
             .serve(addr)
             .await?;
         Ok(())
     }
-
 }

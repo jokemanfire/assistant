@@ -1,12 +1,12 @@
 use super::wasm_runner::WasmModelRunner;
 use crate::config::LocalModelConfig;
+use protos::grpc::model::ChatMessage;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::{mpsc, Mutex};
 use tokio::time::{timeout, Duration};
-use protos::ttrpc::model::ChatMessage;
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
 
@@ -59,7 +59,6 @@ pub struct ModelManager {
     ),
     response_senders: Arc<Mutex<HashMap<String, Sender<ModelResponse>>>>,
 }
-
 
 impl ModelManager {
     pub fn new(configs: Vec<LocalModelConfig>) -> Self {
@@ -161,7 +160,10 @@ impl ModelManager {
         });
     }
 
-    pub async fn submit_request(&self, messages: Vec<ChatMessage>) -> anyhow::Result<ModelResponse> {
+    pub async fn submit_request(
+        &self,
+        messages: Vec<ChatMessage>,
+    ) -> anyhow::Result<ModelResponse> {
         let request_id = uuid::Uuid::new_v4().to_string();
         let (response_tx, mut response_rx) = mpsc::channel(1);
 
@@ -185,17 +187,11 @@ impl ModelManager {
         // wait response, set timeout
         match timeout(DEFAULT_TIMEOUT, response_rx.recv()).await {
             Ok(Some(response)) => {
-                self.response_senders
-                    .lock()
-                    .await
-                    .remove(&request_id);
+                self.response_senders.lock().await.remove(&request_id);
                 Ok(response)
             }
             _ => {
-                self.response_senders
-                    .lock()
-                    .await
-                    .remove(&request_id);
+                self.response_senders.lock().await.remove(&request_id);
                 Ok(ModelResponse {
                     text: String::new(),
                     request_id,
@@ -215,7 +211,7 @@ impl ModelManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use protos::ttrpc::model::Role;
+    use protos::grpc::model::Role;
     use tokio;
 
     #[tokio::test]
@@ -234,17 +230,23 @@ mod tests {
         let mut manager = ModelManager::new(vec![config]);
         manager.init().await.unwrap();
 
-        let response1 = manager.submit_request(vec![ChatMessage {
-            role: Role::ROLE_USER.into(),
-            content: "你好".to_string(),
-            ..Default::default()
-        }]).await.unwrap();
+        let response1 = manager
+            .submit_request(vec![ChatMessage {
+                role: Role::User.into(),
+                content: "你好".to_string(),
+                ..Default::default()
+            }])
+            .await
+            .unwrap();
         println!("Response1: {}", response1.text);
-        let response2 = manager.submit_request(vec![ChatMessage {
-            role: Role::ROLE_USER.into(),
-            content: "你是谁".to_string(),
-            ..Default::default()
-        }]).await.unwrap();
+        let response2 = manager
+            .submit_request(vec![ChatMessage {
+                role: Role::User.into(),
+                content: "你是谁".to_string(),
+                ..Default::default()
+            }])
+            .await
+            .unwrap();
         println!("Response2: {}", response2.text);
     }
 }

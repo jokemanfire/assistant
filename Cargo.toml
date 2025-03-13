@@ -1,5 +1,5 @@
 [workspace]
-members = [ "src/service","src/protos","src/client/api","src/client/web","src/client/cli","src/client/gui", "wasme-ggml"]
+members = ["src/service","src/protos","wasme-ggml","src/client"]
 
 [workspace.dependencies]
 reqwest = { version = "0.12", features = ["json"] }

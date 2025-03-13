@@ -1,8 +1,8 @@
+use log;
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
-use log;
-use once_cell::sync::Lazy;
 
 const DEFAULT_CONFIG: &str = include_str!("default.toml");
 
@@ -10,14 +10,13 @@ const DEFAULT_CONFIG: &str = include_str!("default.toml");
 pub struct Config {
     pub server: ServerConfig,
     pub remote_server: RemoteServerConfig,
-    pub speech_to_text: SpeechToTextConfig,
-    pub dialogue_model: DialogueModelConfig,
-    pub text_to_speech: TextToSpeechConfig,
+    pub voice_chat: VoiceChatConfig,
+    pub chat_model: ChatConfig,
+    pub chat_voice: ChatVoiceConfig,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct ServerConfig {
-    pub ttrpc_addr: Option<String>,
     pub grpc_addr: Option<String>,
     pub try_max_time: Option<u32>,
 }
@@ -53,21 +52,21 @@ pub struct LocalModelConfig {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
-pub struct SpeechToTextConfig {
+pub struct VoiceChatConfig {
     pub model_path: Option<String>,
     pub model_name: Option<String>,
     pub api_key: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
-pub struct DialogueModelConfig {
+pub struct ChatConfig {
     pub knowledge_base: Option<String>,
     pub local_models: Vec<LocalModelConfig>,
     pub remote_models: Vec<ModelConfig>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
-pub struct TextToSpeechConfig {
+pub struct ChatVoiceConfig {
     pub model_path: Option<String>,
 }
 
@@ -87,14 +86,14 @@ pub struct ModelTemplate {
 impl Config {
     pub fn new() -> Self {
         let config_path = "/etc/assistant/service/config.toml";
-        
+
         // Get config from file
         if let Ok(config_str) = fs::read_to_string(config_path) {
             if let Ok(config) = toml::from_str(&config_str) {
                 return config;
             }
         }
-        
+
         // If failed to load, use default config
         let default_config = include_str!("default.toml");
         toml::from_str(default_config).unwrap_or_else(|_| {
@@ -106,22 +105,56 @@ impl Config {
 
 impl ChatTemplateConfig {
     pub fn new() -> Self {
-        let template_path = "/etc/assistant/service/chat_templates.toml";
-        // Get template from file
-        if let Ok(template_str) = fs::read_to_string(template_path) {
-            if let Ok(templates) = toml::from_str(&template_str) {
-                return templates;
-            }
-        }
-        
-        // If failed to load, use default config
-        let default_templates = include_str!("chat_templates.toml");
-        toml::from_str(default_templates).unwrap_or_else(|_| {
-            log::error!("Failed to parse default chat templates");
-            Self::default()
-        })
+        // 直接在代码中定义模板，不再从文件加载
+        let mut templates = HashMap::new();
+
+        // Qwen chat template
+        templates.insert(
+            "qwen".to_string(),
+            ModelTemplate {
+                user: "<|im_start|>user\n{prompt}\n<|im_end|>".to_string(),
+                assistant: "<|im_start|>assistant\n".to_string(),
+                system: "<|im_start|>system\n{system_prompt}<|im_end|>".to_string(),
+                chat_template: "{system}\n{user}\n{assistant}".to_string(),
+            },
+        );
+
+        // DeepSeek chat template
+        templates.insert(
+            "deepseek".to_string(),
+            ModelTemplate {
+                user: "Human: {prompt}\n".to_string(),
+                assistant: "Assistant: ".to_string(),
+                system: "{system_prompt}\n".to_string(),
+                chat_template: "{system}{user}{assistant}".to_string(),
+            },
+        );
+
+        // DeepSeek-AI chat template (same as DeepSeek)
+        templates.insert(
+            "deepseek-ai".to_string(),
+            ModelTemplate {
+                user: "Human: {prompt}\n".to_string(),
+                assistant: "Assistant: ".to_string(),
+                system: "{system_prompt}\n".to_string(),
+                chat_template: "{system}{user}{assistant}".to_string(),
+            },
+        );
+
+        // Default chat template
+        templates.insert(
+            "default".to_string(),
+            ModelTemplate {
+                user: "{prompt}".to_string(),
+                assistant: "{response}".to_string(),
+                system: "{system_prompt}".to_string(),
+                chat_template: "{user}".to_string(),
+            },
+        );
+
+        Self { templates }
     }
-    
+
     // Get template for specified model
     pub fn get_template(&self, model_type: &str) -> &ModelTemplate {
         self.templates.get(model_type).unwrap_or_else(|| {
@@ -135,7 +168,6 @@ impl ChatTemplateConfig {
 }
 
 #[cfg(test)]
-
 mod test {
     use super::*;
     use std::fs;

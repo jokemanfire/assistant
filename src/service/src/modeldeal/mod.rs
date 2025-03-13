@@ -1,3 +1,3 @@
-pub mod dialogue_model;
-pub mod speech_to_text;
-pub mod text_to_speech;
+pub mod chat;
+pub mod chat_voice;
+pub mod voice_chat;
