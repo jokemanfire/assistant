@@ -8,6 +8,7 @@ use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, Command, Stdio};
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use std::thread;
 
 pub struct WasmModelRunner {
     config: LocalModelConfig,
@@ -156,19 +157,6 @@ impl WasmModelRunner {
             stdin.write_all(&[0])?;
             stdin.flush()?;
 
-            // Read stderr
-            let stderr = process.stderr.as_mut().ok_or("Failed to get stderr")?;
-            let stderr_reader = BufReader::new(stderr);
-            let stderr_lines: Vec<String> = stderr_reader
-                .lines()
-                .take(10) // 只读取前10行，避免阻塞
-                .filter_map(|line| line.ok())
-                .collect();
-
-            for line in &stderr_lines {
-                debug!("WASM stderr: {}", line);
-            }
-
             // read response
             let stdout = process.stdout.as_mut().ok_or("Failed to get stdout")?;
             let mut reader = BufReader::new(stdout);
@@ -195,13 +183,6 @@ impl WasmModelRunner {
             // Check if response is empty
             if parsed_response.trim().is_empty() {
                 warn!("Empty response from WASM model");
-                if !stderr_lines.is_empty() {
-                    // If stderr has output, use it as error information
-                    let error_msg = stderr_lines.join("\n");
-                    return Err(
-                        format!("Model returned empty response. Error: {}", error_msg).into(),
-                    );
-                }
                 return Err("Model returned empty response. Try with a different prompt.".into());
             }
 
@@ -250,8 +231,21 @@ impl WasmModelRunner {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()?;
+        
+        // start a thread to listen to stderr
+        let mut process_with_stderr = process;
+        if let Some(stderr) = process_with_stderr.stderr.take() {
+            thread::spawn(move || {
+                let stderr_reader = BufReader::new(stderr);
+                for line in stderr_reader.lines() {
+                    if let Ok(line) = line {
+                        debug!("WASM stderr: {}", line);
+                    }
+                }
+            });
+        }
 
-        self.process = Some(Arc::new(Mutex::new(process)));
+        self.process = Some(Arc::new(Mutex::new(process_with_stderr)));
         Ok(())
     }
 }

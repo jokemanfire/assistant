@@ -228,7 +228,6 @@ fn main() {
                         std::io::stdout().flush().expect("Failed to flush stdout");
                     }
                 }
-
                 if error_occurred {
                     eprintln!("{}", error_message);
                     if !has_output {

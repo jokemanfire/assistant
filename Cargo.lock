@@ -116,6 +116,7 @@ dependencies = [
  "async-trait",
  "config",
  "env_logger",
+ "libc",
  "log",
  "once_cell",
  "prost",

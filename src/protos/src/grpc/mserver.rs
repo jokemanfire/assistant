@@ -10,8 +10,10 @@ pub struct ForwardTextRequest {
     pub route_uuids: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
     /// 可选参数
     #[prost(map = "string, string", tag = "3")]
-    pub parameters:
-        ::std::collections::HashMap<::prost::alloc::string::String, ::prost::alloc::string::String>,
+    pub parameters: ::std::collections::HashMap<
+        ::prost::alloc::string::String,
+        ::prost::alloc::string::String,
+    >,
 }
 /// 扩展的文本响应消息
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -42,7 +44,17 @@ pub struct ModelStatusResponse {
 }
 /// Nested message and enum types in `ModelStatusResponse`.
 pub mod model_status_response {
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
     #[repr(i32)]
     pub enum Status {
         Unknown = 0,
@@ -103,10 +115,10 @@ pub mod server_service_client {
         dead_code,
         missing_docs,
         clippy::wildcard_imports,
-        clippy::let_unit_value
+        clippy::let_unit_value,
     )]
-    use tonic::codegen::http::Uri;
     use tonic::codegen::*;
+    use tonic::codegen::http::Uri;
     /// 服务接口定义
     #[derive(Debug, Clone)]
     pub struct ServerServiceClient<T> {
@@ -151,8 +163,9 @@ pub mod server_service_client {
                     <T as tonic::client::GrpcService<tonic::body::BoxBody>>::ResponseBody,
                 >,
             >,
-            <T as tonic::codegen::Service<http::Request<tonic::body::BoxBody>>>::Error:
-                Into<StdError> + std::marker::Send + std::marker::Sync,
+            <T as tonic::codegen::Service<
+                http::Request<tonic::body::BoxBody>,
+            >>::Error: Into<StdError> + std::marker::Send + std::marker::Sync,
         {
             ServerServiceClient::new(InterceptedService::new(inner, interceptor))
         }
@@ -191,12 +204,22 @@ pub mod server_service_client {
         pub async fn query_models(
             &mut self,
             request: impl tonic::IntoRequest<super::Empty>,
-        ) -> std::result::Result<tonic::Response<super::ModelListResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::ModelListResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/mserver.ServerService/QueryModels");
+            let path = http::uri::PathAndQuery::from_static(
+                "/mserver.ServerService/QueryModels",
+            );
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("mserver.ServerService", "QueryModels"));
@@ -206,14 +229,22 @@ pub mod server_service_client {
         pub async fn query_model_status(
             &mut self,
             request: impl tonic::IntoRequest<super::ModelStatusRequest>,
-        ) -> std::result::Result<tonic::Response<super::ModelStatusResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::ModelStatusResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/mserver.ServerService/QueryModelStatus");
+            let path = http::uri::PathAndQuery::from_static(
+                "/mserver.ServerService/QueryModelStatus",
+            );
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("mserver.ServerService", "QueryModelStatus"));
@@ -223,13 +254,22 @@ pub mod server_service_client {
         pub async fn process_text(
             &mut self,
             request: impl tonic::IntoRequest<super::ForwardTextRequest>,
-        ) -> std::result::Result<tonic::Response<super::ForwardTextResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::ForwardTextResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/mserver.ServerService/ProcessText");
+            let path = http::uri::PathAndQuery::from_static(
+                "/mserver.ServerService/ProcessText",
+            );
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("mserver.ServerService", "ProcessText"));
@@ -244,7 +284,7 @@ pub mod server_service_server {
         dead_code,
         missing_docs,
         clippy::wildcard_imports,
-        clippy::let_unit_value
+        clippy::let_unit_value,
     )]
     use tonic::codegen::*;
     /// Generated trait containing gRPC methods that should be implemented for use with ServerServiceServer.
@@ -254,17 +294,26 @@ pub mod server_service_server {
         async fn query_models(
             &self,
             request: tonic::Request<super::Empty>,
-        ) -> std::result::Result<tonic::Response<super::ModelListResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::ModelListResponse>,
+            tonic::Status,
+        >;
         /// 查询特定模型状态
         async fn query_model_status(
             &self,
             request: tonic::Request<super::ModelStatusRequest>,
-        ) -> std::result::Result<tonic::Response<super::ModelStatusResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::ModelStatusResponse>,
+            tonic::Status,
+        >;
         /// 处理文本请求，支持转发
         async fn process_text(
             &self,
             request: tonic::Request<super::ForwardTextRequest>,
-        ) -> std::result::Result<tonic::Response<super::ForwardTextResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::ForwardTextResponse>,
+            tonic::Status,
+        >;
     }
     /// 服务接口定义
     #[derive(Debug)]
@@ -288,7 +337,10 @@ pub mod server_service_server {
                 max_encoding_message_size: None,
             }
         }
-        pub fn with_interceptor<F>(inner: T, interceptor: F) -> InterceptedService<Self, F>
+        pub fn with_interceptor<F>(
+            inner: T,
+            interceptor: F,
+        ) -> InterceptedService<Self, F>
         where
             F: tonic::service::Interceptor,
         {
@@ -343,10 +395,17 @@ pub mod server_service_server {
                 "/mserver.ServerService/QueryModels" => {
                     #[allow(non_camel_case_types)]
                     struct QueryModelsSvc<T: ServerService>(pub Arc<T>);
-                    impl<T: ServerService> tonic::server::UnaryService<super::Empty> for QueryModelsSvc<T> {
+                    impl<T: ServerService> tonic::server::UnaryService<super::Empty>
+                    for QueryModelsSvc<T> {
                         type Response = super::ModelListResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
-                        fn call(&mut self, request: tonic::Request<super::Empty>) -> Self::Future {
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::Empty>,
+                        ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
                                 <T as ServerService>::query_models(&inner, request).await
@@ -379,18 +438,23 @@ pub mod server_service_server {
                 "/mserver.ServerService/QueryModelStatus" => {
                     #[allow(non_camel_case_types)]
                     struct QueryModelStatusSvc<T: ServerService>(pub Arc<T>);
-                    impl<T: ServerService> tonic::server::UnaryService<super::ModelStatusRequest>
-                        for QueryModelStatusSvc<T>
-                    {
+                    impl<
+                        T: ServerService,
+                    > tonic::server::UnaryService<super::ModelStatusRequest>
+                    for QueryModelStatusSvc<T> {
                         type Response = super::ModelStatusResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::ModelStatusRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as ServerService>::query_model_status(&inner, request).await
+                                <T as ServerService>::query_model_status(&inner, request)
+                                    .await
                             };
                             Box::pin(fut)
                         }
@@ -420,11 +484,15 @@ pub mod server_service_server {
                 "/mserver.ServerService/ProcessText" => {
                     #[allow(non_camel_case_types)]
                     struct ProcessTextSvc<T: ServerService>(pub Arc<T>);
-                    impl<T: ServerService> tonic::server::UnaryService<super::ForwardTextRequest>
-                        for ProcessTextSvc<T>
-                    {
+                    impl<
+                        T: ServerService,
+                    > tonic::server::UnaryService<super::ForwardTextRequest>
+                    for ProcessTextSvc<T> {
                         type Response = super::ForwardTextResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::ForwardTextRequest>,
@@ -458,19 +526,23 @@ pub mod server_service_server {
                     };
                     Box::pin(fut)
                 }
-                _ => Box::pin(async move {
-                    let mut response = http::Response::new(empty_body());
-                    let headers = response.headers_mut();
-                    headers.insert(
-                        tonic::Status::GRPC_STATUS,
-                        (tonic::Code::Unimplemented as i32).into(),
-                    );
-                    headers.insert(
-                        http::header::CONTENT_TYPE,
-                        tonic::metadata::GRPC_CONTENT_TYPE,
-                    );
-                    Ok(response)
-                }),
+                _ => {
+                    Box::pin(async move {
+                        let mut response = http::Response::new(empty_body());
+                        let headers = response.headers_mut();
+                        headers
+                            .insert(
+                                tonic::Status::GRPC_STATUS,
+                                (tonic::Code::Unimplemented as i32).into(),
+                            );
+                        headers
+                            .insert(
+                                http::header::CONTENT_TYPE,
+                                tonic::metadata::GRPC_CONTENT_TYPE,
+                            );
+                        Ok(response)
+                    })
+                }
             }
         }
     }

@@ -19,7 +19,6 @@ impl AssistantClient {
     /// Create a new client connected to the specified endpoint
     pub async fn connect(endpoint: &str) -> Result<Self> {
         let channel = Channel::from_shared(endpoint.to_string())?
-            .timeout(Duration::from_secs(50000))
             .connect()
             .await?;
 
