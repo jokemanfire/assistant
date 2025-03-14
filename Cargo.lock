@@ -113,7 +113,7 @@ name = "assistant-plugins"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "assistant-service",
+ "assistant-client",
  "async-trait",
  "axum",
  "http",
@@ -124,6 +124,7 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.11",
  "tokio",
+ "tonic",
  "tower 0.4.13",
  "tower-http",
  "uuid",
@@ -134,6 +135,7 @@ name = "assistant-service"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "assistant-plugins",
  "async-trait",
  "config",
  "env_logger",

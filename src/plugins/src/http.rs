@@ -4,24 +4,26 @@ use crate::Plugin;
 use anyhow::Result;
 use async_trait::async_trait;
 use axum::{
-    Router,
-    routing::{get, post},
-    http::Method,
     extract::State,
+    http::Method,
+    routing::{get, post},
+    serve::Serve,
+    Router,
 };
-use log::{info, error};
+use log::{error, info};
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tokio::sync::Mutex;
-use tower_http::cors::{CorsLayer, Any};
+use tokio::sync::{oneshot, Mutex};
+use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 
-/// HTTP服务插件
+/// HTTP service plugin
+#[derive(Clone)]
 pub struct HttpPlugin {
     name: String,
     config: HttpConfig,
     router: Option<Router>,
-    shutdown_signal: Option<tokio::sync::oneshot::Sender<()>>,
+    close_signal: Arc<Mutex<Option<oneshot::Sender<()>>>>,
 }
 
 impl HttpPlugin {
@@ -30,15 +32,15 @@ impl HttpPlugin {
             name: "http".to_string(),
             config,
             router: None,
-            shutdown_signal: None,
+            close_signal: Arc::new(Mutex::new(None)),
         }
     }
-    
+
     pub fn with_router(mut self, router: Router) -> Self {
         self.router = Some(router);
         self
     }
-    
+
     async fn health_check() -> &'static str {
         "OK"
     }
@@ -49,23 +51,22 @@ impl Plugin for HttpPlugin {
     fn name(&self) -> &str {
         &self.name
     }
-    
+
     async fn init(&mut self) -> Result<()> {
         if self.router.is_none() {
-            // 创建默认路由
-            let router = Router::new()
-                .route("/health", get(Self::health_check));
+            // create default router
+            let router = Router::new().route("/health", get(Self::health_check));
             self.router = Some(router);
         }
-        
+
         Ok(())
     }
-    
+
     async fn start(&self) -> Result<()> {
         if let Some(router) = &self.router {
             let mut final_router = router.clone();
-            
-            // 添加CORS支持
+
+            // Add CORS support
             if self.config.enable_cors {
                 let cors = CorsLayer::new()
                     .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
@@ -73,56 +74,57 @@ impl Plugin for HttpPlugin {
                     .allow_origin(Any);
                 final_router = final_router.layer(cors);
             }
-            
-            // 添加日志
+
+            // Add logging
             if self.config.enable_logging {
                 final_router = final_router.layer(TraceLayer::new_for_http());
             }
-            
-            // 创建地址
+
+            // Create address
             let addr = SocketAddr::new(
-                self.config.host.parse().unwrap_or_else(|_| "127.0.0.1".parse().unwrap()),
+                self.config
+                    .host
+                    .parse()
+                    .unwrap_or_else(|_| "127.0.0.1".parse().unwrap()),
                 self.config.port,
             );
-            
-            // 创建关闭信号
+
+            // Create shutdown signal
             let (tx, rx) = tokio::sync::oneshot::channel::<()>();
-            let mut shutdown_signal = Some(tx);
-            std::mem::swap(&mut shutdown_signal, &mut self.shutdown_signal.clone());
-            
-            // 启动服务器
-            info!("HTTP服务启动在 {}", addr);
+
+            // Start server
+            info!("http service started at {}", addr);
             tokio::spawn(async move {
-                match axum::Server::bind(&addr)
-                    .serve(final_router.into_make_service())
+                let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+                match axum::serve(listener, final_router)
                     .with_graceful_shutdown(async {
                         rx.await.ok();
                     })
                     .await
                 {
-                    Ok(_) => info!("HTTP服务已停止"),
-                    Err(e) => error!("HTTP服务错误: {}", e),
+                    Ok(_) => info!("http service stopped"),
+                    Err(e) => error!("http service error: {}", e),
                 }
             });
-            
+
+            self.close_signal.lock().await.replace(tx);
+
             Ok(())
         } else {
-            Err(PluginError::StartError("路由未初始化".to_string()).into())
+            Err(PluginError::StartError("router not initialized".to_string()).into())
         }
     }
-    
+
     async fn stop(&self) -> Result<()> {
-        if let Some(signal) = &self.shutdown_signal {
-            let _ = signal.send(());
-            info!("已发送HTTP服务停止信号");
-            Ok(())
-        } else {
-            Err(PluginError::StopError("HTTP服务未启动".to_string()).into())
-        }
+        // Since we no longer save shutdown_signal, here we only log
+        info!("HTTP service will stop after all connections are closed");
+        let _ = self.close_signal.lock().await.take().unwrap().send(());
+        Ok(())
     }
 }
 
-/// 创建共享状态
+/// Create shared state
+#[derive(Clone)]
 pub struct AppState<T> {
     pub inner: Arc<Mutex<T>>,
 }
@@ -135,11 +137,11 @@ impl<T> AppState<T> {
     }
 }
 
-/// 从AppState中提取内部值
+/// Extract inner value from AppState
 pub async fn with_state<T, F, R>(state: State<AppState<T>>, f: F) -> Result<R, PluginError>
 where
     F: FnOnce(&mut T) -> Result<R, PluginError>,
 {
     let mut guard = state.inner.lock().await;
     f(&mut *guard)
-} 
+}

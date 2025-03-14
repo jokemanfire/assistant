@@ -1,40 +1,39 @@
 use crate::error::PluginError;
 use crate::http::AppState;
-use crate::openai::{
-    models::{
-        ChatCompletionChoice, ChatCompletionRequest, ChatCompletionResponse, ChatCompletionUsage,
-        ChatMessage, CompletionChoice, CompletionRequest, CompletionResponse, Role,
-    },
-    OpenAIState,
+use crate::openai::models::{
+    ChatCompletionChoice, ChatCompletionRequest, ChatCompletionResponse, ChatCompletionUsage,
+    ChatMessage, CompletionChoice, CompletionRequest, CompletionResponse, Role,
 };
+#[cfg(feature = "http_api")]
+use crate::openai::OpenAIState;
 use axum::{extract::State, Json};
 use log::{debug, error, info};
 use protos::grpc::model::{ChatMessage as GrpcChatMessage, Role as GrpcRole};
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
-/// 处理聊天完成请求
+/// Deal with chat completion request
 #[cfg(feature = "http_api")]
 pub async fn chat_completions(
     State(state): State<AppState<OpenAIState>>,
     Json(request): Json<ChatCompletionRequest>,
 ) -> Result<Json<ChatCompletionResponse>, PluginError> {
-    info!("收到聊天完成请求，模型: {}", request.model);
-    debug!("请求详情: {:?}", request);
-    
-    // 获取状态
+    info!("receive chat completion request, model: {}", request.model);
+    debug!("request details: {:?}", request);
+
+    // get state
     let state_guard = state.inner.lock().await;
-    let model_service = &state_guard.model_service;
+    let mut model_service = state_guard.model_service.lock().await;
     let config = &state_guard.config;
-    
-    // 将OpenAI模型名映射到本地模型
+
+    // map OpenAI model name to local model
     let model_name = config
         .model_mapping
         .get(&request.model)
         .cloned()
         .unwrap_or_else(|| "default".to_string());
-    
-    // 转换消息格式
+
+    // convert message format
     let grpc_messages: Vec<GrpcChatMessage> = request
         .messages
         .iter()
@@ -43,17 +42,17 @@ pub async fn chat_completions(
                 Role::System => GrpcRole::System as i32,
                 Role::User => GrpcRole::User as i32,
                 Role::Assistant => GrpcRole::Assistant as i32,
-                _ => GrpcRole::User as i32, // 默认为用户
+                _ => GrpcRole::User as i32, // default to user
             },
             content: msg.content.clone(),
             ..Default::default()
         })
         .collect();
-    
-    // 调用gRPC服务
-    match model_service.text_chat_internal(grpc_messages).await {
+
+    // call gRPC service
+    match model_service.chat(grpc_messages).await {
         Ok(response_text) => {
-            // 创建响应
+            // create response
             let response = ChatCompletionResponse {
                 id: format!("chatcmpl-{}", Uuid::new_v4()),
                 object: "chat.completion".to_string(),
@@ -77,11 +76,11 @@ pub async fn chat_completions(
                     total_tokens: 0,
                 },
             };
-            
+
             Ok(Json(response))
         }
         Err(e) => {
-            error!("聊天完成请求失败: {}", e);
+            error!("chat completion request failed: {}", e);
             Err(PluginError::ModelServiceError(e.to_string()))
         }
     }
@@ -93,32 +92,31 @@ pub async fn completions(
     State(state): State<AppState<OpenAIState>>,
     Json(request): Json<CompletionRequest>,
 ) -> Result<Json<CompletionResponse>, PluginError> {
-    info!("收到文本完成请求，模型: {}", request.model);
-    debug!("请求详情: {:?}", request);
-    
-    // 获取状态
+    info!("get completion request, model: {}", request.model);
+    debug!("request details: {:?}", request);
+
+    // get state
     let state_guard = state.inner.lock().await;
-    let model_service = &state_guard.model_service;
+    let mut model_service = state_guard.model_service.lock().await;
     let config = &state_guard.config;
-    
-    // 将OpenAI模型名映射到本地模型
+
+    // map OpenAI model name to local model
     let model_name = config
         .model_mapping
         .get(&request.model)
         .cloned()
         .unwrap_or_else(|| "default".to_string());
-    
-    // 创建消息
+
+    // Create grpc messages
     let grpc_messages = vec![GrpcChatMessage {
         role: GrpcRole::User as i32,
         content: request.prompt.clone(),
         ..Default::default()
     }];
-    
-    // 调用gRPC服务
-    match model_service.text_chat_internal(grpc_messages).await {
+
+    match model_service.chat(grpc_messages).await {
         Ok(response_text) => {
-            // 创建响应
+            // Create response
             let response = CompletionResponse {
                 id: format!("cmpl-{}", Uuid::new_v4()),
                 object: "text_completion".to_string(),
@@ -138,11 +136,11 @@ pub async fn completions(
                     total_tokens: 0,
                 },
             };
-            
+
             Ok(Json(response))
         }
         Err(e) => {
-            error!("文本完成请求失败: {}", e);
+            error!("text completion request failed: {}", e);
             Err(PluginError::ModelServiceError(e.to_string()))
         }
     }
@@ -160,4 +158,4 @@ pub async fn completions(
     Json(request): Json<CompletionRequest>,
 ) -> Result<Json<CompletionResponse>, PluginError> {
     Err(PluginError::HttpError("未启用http_api特性".to_string()))
-} 
+}

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-/// 聊天消息角色
+/// Chat message role
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Role {
@@ -12,7 +12,7 @@ pub enum Role {
     Tool,
 }
 
-/// 聊天消息
+/// Chat message
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatMessage {
     pub role: Role,
@@ -21,7 +21,7 @@ pub struct ChatMessage {
     pub name: Option<String>,
 }
 
-/// 聊天完成请求
+/// Chat completion request
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatCompletionRequest {
     pub model: String,
@@ -46,7 +46,7 @@ pub struct ChatCompletionRequest {
     pub user: Option<String>,
 }
 
-/// 聊天完成响应选择
+/// Chat completion choice
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatCompletionChoice {
     pub index: u32,
@@ -54,7 +54,7 @@ pub struct ChatCompletionChoice {
     pub finish_reason: String,
 }
 
-/// 聊天完成响应使用情况
+/// Chat completion usage
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatCompletionUsage {
     pub prompt_tokens: u32,
@@ -62,7 +62,7 @@ pub struct ChatCompletionUsage {
     pub total_tokens: u32,
 }
 
-/// 聊天完成响应
+/// Chat completion response
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatCompletionResponse {
     pub id: String,
@@ -73,7 +73,7 @@ pub struct ChatCompletionResponse {
     pub usage: ChatCompletionUsage,
 }
 
-/// 文本完成请求
+/// Text completion request
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompletionRequest {
     pub model: String,
@@ -98,7 +98,7 @@ pub struct CompletionRequest {
     pub user: Option<String>,
 }
 
-/// 文本完成响应选择
+/// Text completion choice
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompletionChoice {
     pub index: u32,
@@ -106,7 +106,7 @@ pub struct CompletionChoice {
     pub finish_reason: String,
 }
 
-/// 文本完成响应
+/// Text completion response
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompletionResponse {
     pub id: String,
@@ -115,4 +115,4 @@ pub struct CompletionResponse {
     pub model: String,
     pub choices: Vec<CompletionChoice>,
     pub usage: ChatCompletionUsage,
-} 
+}

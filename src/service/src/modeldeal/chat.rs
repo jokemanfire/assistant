@@ -29,7 +29,6 @@ impl DialogueModel {
 
         // try each model until success or all fail
         for model in av_remote_conf {
-   
             let result: Result<String, Box<dyn std::error::Error>> = async {
                 // Convert ChatMessage to JSON array for API request
                 let messages = inputdata
@@ -50,7 +49,8 @@ impl DialogueModel {
                     .collect::<Vec<_>>();
 
                 // If no system message is present, add a default one
-                let has_system_message = inputdata.iter().any(|msg| msg.role == Role::System as i32);
+                let has_system_message =
+                    inputdata.iter().any(|msg| msg.role == Role::System as i32);
                 let final_messages = if !has_system_message {
                     let mut msgs = vec![json!({
                         "role": "system",
@@ -70,10 +70,7 @@ impl DialogueModel {
                 let response = client
                     .post(model.model_path.clone())
                     .header("Content-Type", "application/json")
-                    .header(
-                        "Authorization",
-                        format!("Bearer {}", model.api_key.clone()),
-                    )
+                    .header("Authorization", format!("Bearer {}", model.api_key.clone()))
                     .json(&request_json)
                     .send()
                     .await?;
@@ -87,12 +84,13 @@ impl DialogueModel {
                 let body = response.text().await?;
                 let json_data: Value = serde_json::from_str(&body)?;
                 println!("debug : '{:?}' \n ---", json_data);
-                
+
                 Ok(json_data["choices"][0]["message"]["content"]
                     .as_str()
                     .ok_or("Failed to extract response text")?
                     .to_string())
-            }.await;
+            }
+            .await;
 
             match result {
                 Ok(response) => {

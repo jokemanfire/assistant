@@ -4,25 +4,25 @@ use thiserror::Error;
 pub enum PluginError {
     #[error("插件初始化失败: {0}")]
     InitError(String),
-    
+
     #[error("插件启动失败: {0}")]
     StartError(String),
-    
+
     #[error("插件停止失败: {0}")]
     StopError(String),
-    
+
     #[error("HTTP服务错误: {0}")]
     HttpError(String),
-    
+
     #[error("请求解析错误: {0}")]
     RequestParseError(String),
-    
+
     #[error("响应生成错误: {0}")]
     ResponseGenerationError(String),
-    
+
     #[error("模型服务错误: {0}")]
     ModelServiceError(String),
-    
+
     #[error("未知错误: {0}")]
     Unknown(String),
 }
@@ -60,14 +60,14 @@ impl axum::response::IntoResponse for PluginError {
             PluginError::ModelServiceError(_) => http::StatusCode::SERVICE_UNAVAILABLE,
             _ => http::StatusCode::INTERNAL_SERVER_ERROR,
         };
-        
+
         let body = serde_json::json!({
             "error": {
                 "message": self.to_string(),
                 "type": format!("{:?}", self).split('(').next().unwrap_or("Unknown"),
             }
         });
-        
+
         (status, axum::Json(body)).into_response()
     }
-} 
+}

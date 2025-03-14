@@ -1,37 +1,39 @@
 mod api;
-mod models;
 mod auth;
+mod models;
 
 use crate::config::OpenAIConfig;
-use crate::error::PluginError;
 use crate::http::{AppState, HttpPlugin};
 use crate::Plugin;
 use anyhow::Result;
 use async_trait::async_trait;
 use axum::{
-    Router,
-    routing::post,
-    extract::{State, Json},
+    extract::{Json, State},
     http::{Request, StatusCode},
     middleware::{self, Next},
     response::Response,
+    routing::post,
+    Router,
 };
 use log::{info, warn};
 use std::sync::Arc;
+use tokio::sync::Mutex;
 
 pub use self::api::{chat_completions, completions};
-pub use self::models::{ChatCompletionRequest, ChatCompletionResponse, CompletionRequest, CompletionResponse};
 pub use self::auth::verify_api_key;
+pub use self::models::{
+    ChatCompletionRequest, ChatCompletionResponse, CompletionRequest, CompletionResponse,
+};
 
 #[cfg(feature = "http_api")]
-use assistant_service::service::grpcservice::ModelServiceImpl;
+use assistant_client::AssistantClient;
 
-/// OpenAI兼容API插件
+/// OpenAI plugin
 pub struct OpenAIPlugin {
     name: String,
     config: OpenAIConfig,
     #[cfg(feature = "http_api")]
-    model_service: Option<Arc<ModelServiceImpl>>,
+    model_service: Option<Arc<Mutex<AssistantClient>>>,
 }
 
 impl OpenAIPlugin {
@@ -43,13 +45,14 @@ impl OpenAIPlugin {
             model_service: None,
         }
     }
-    
+
     #[cfg(feature = "http_api")]
-    pub fn with_model_service(mut self, service: Arc<ModelServiceImpl>) -> Self {
-        self.model_service = Some(service);
-        self
+    pub async fn with_model_service(mut self, endpoint: String) -> Result<Self, anyhow::Error> {
+        let model_service = AssistantClient::connect(endpoint.as_str()).await?;
+        self.model_service = Some(Arc::new(Mutex::new(model_service)));
+        Ok(self)
     }
-    
+
     pub fn create_router(&self) -> Router {
         #[cfg(feature = "http_api")]
         {
@@ -58,16 +61,19 @@ impl OpenAIPlugin {
                     config: self.config.clone(),
                     model_service: model_service.clone(),
                 });
-                
+                // use assistant client to create router
                 return Router::new()
                     .route("/v1/chat/completions", post(chat_completions))
                     .route("/v1/completions", post(completions))
-                    .layer(middleware::from_fn_with_state(state.clone(), verify_api_key))
+                    .layer(middleware::from_fn_with_state(
+                        state.clone(),
+                        verify_api_key,
+                    ))
                     .with_state(state);
             }
         }
-        
-        // 如果没有启用http_api特性或没有model_service，返回一个空路由
+
+        // if http_api feature is not enabled, return a empty router
         Router::new()
     }
 }
@@ -77,43 +83,44 @@ impl Plugin for OpenAIPlugin {
     fn name(&self) -> &str {
         &self.name
     }
-    
+
     async fn init(&mut self) -> Result<()> {
         if !self.config.enabled {
-            info!("OpenAI兼容API已禁用");
+            info!("OpenAI plugin is disabled");
             return Ok(());
         }
-        
+
         #[cfg(not(feature = "http_api"))]
         {
-            warn!("未启用http_api特性，OpenAI兼容API将不可用");
+            warn!("http_api feature is not enabled, OpenAI compatible API will be disabled");
             return Ok(());
         }
-        
+
         #[cfg(feature = "http_api")]
         {
             if self.model_service.is_none() {
-                warn!("未提供模型服务，OpenAI兼容API将不可用");
+                warn!("No model service provided, OpenAI compatible API will be disabled");
             }
         }
-        
+
         Ok(())
     }
-    
+
     async fn start(&self) -> Result<()> {
-        // 启动由HttpPlugin处理
+        // start by HttpPlugin
         Ok(())
     }
-    
+
     async fn stop(&self) -> Result<()> {
-        // 停止由HttpPlugin处理
+        // stop by HttpPlugin
         Ok(())
     }
 }
 
-/// OpenAI API状态
+/// OpenAI API state
 #[cfg(feature = "http_api")]
+#[derive(Clone)]
 pub struct OpenAIState {
     pub config: OpenAIConfig,
-    pub model_service: Arc<ModelServiceImpl>,
-} 
+    pub model_service: Arc<Mutex<AssistantClient>>,
+}

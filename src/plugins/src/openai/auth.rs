@@ -1,19 +1,22 @@
 use crate::error::PluginError;
 use crate::http::AppState;
-use crate::openai::OpenAIState;
 use axum::{
+    body::Body as AxumBody,
     extract::State,
     http::{Request, StatusCode},
     middleware::Next,
     response::Response,
 };
 
-/// 验证API密钥中间件
 #[cfg(feature = "http_api")]
-pub async fn verify_api_key<B>(
+use crate::openai::OpenAIState;
+
+/// Verify api key middleware
+#[cfg(feature = "http_api")]
+pub async fn verify_api_key(
     State(state): State<AppState<OpenAIState>>,
-    req: Request<B>,
-    next: Next<B>,
+    req: Request<AxumBody>,
+    next: Next,
 ) -> Result<Response, PluginError> {
     let auth_header = req
         .headers()
@@ -23,29 +26,31 @@ pub async fn verify_api_key<B>(
     if let Some(auth) = auth_header {
         if auth.starts_with("Bearer ") {
             let api_key = auth.trim_start_matches("Bearer ").trim();
-            
-            // 获取配置中的API密钥
+
+            // Get api keys from config
             let config = {
                 let state_guard = state.inner.lock().await;
                 state_guard.config.clone()
             };
-            
-            // 验证API密钥
-            if config.api_keys.contains(&api_key.to_string()) || config.api_keys.contains(&"*".to_string()) {
+
+            // Verify api key
+            if config.api_keys.contains(&api_key.to_string())
+                || config.api_keys.contains(&"*".to_string())
+            {
                 return Ok(next.run(req).await);
             }
         }
     }
-    
-    // 返回未授权错误
-    Err(PluginError::HttpError("无效的API密钥".to_string()))
+
+    // Return unauthorized error
+    Err(PluginError::HttpError("Invalid API key".to_string()))
 }
 
 #[cfg(not(feature = "http_api"))]
-pub async fn verify_api_key<B, S>(
-    req: Request<B>,
-    next: Next<B>,
+pub async fn verify_api_key(
+    req: Request<axum::body::Body>,
+    next: Next,
 ) -> Result<Response, PluginError> {
-    // 如果未启用http_api特性，直接通过
+    // If http_api feature is not enabled, pass directly
     Ok(next.run(req).await)
-} 
+}

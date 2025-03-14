@@ -424,7 +424,7 @@ impl GrpcService {
         Ok(model_service)
     }
 
-    pub async fn start(&mut self) -> Result<(), Box<dyn Error>> {
+    pub async fn start(&mut self) -> Result<(), Box<dyn Error + Send + Sync>> {
         let addr = self
             .config
             .server
@@ -467,6 +467,63 @@ impl GrpcService {
             .add_service(ModelServiceServer::new(model_service))
             .serve(addr)
             .await?;
+        Ok(())
+    }
+
+    pub async fn start_in_background(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
+        let addr = self
+            .config
+            .server
+            .grpc_addr
+            .as_ref()
+            .ok_or("Missing gRPC address")?
+            .parse()?;
+
+        // Create server service implementation
+        let server_service = ServerServiceImpl {
+            config: self.config.clone(),
+            uuid: self.uuid.clone(),
+        };
+
+        // Create model service implementation
+        let local_service = Arc::new(
+            crate::service::localservice::LocalService::new(
+                self.config.chat_model.local_models.clone(),
+            )
+            .await,
+        );
+
+        let model_service = ModelServiceImpl {
+            chat_model: DialogueModel {
+                config: self.config.chat_model.clone(),
+            },
+            voice_model: VoiceModel {
+                config: self.config.chat_voice.clone(),
+            },
+            speech_model: SpeechModel {
+                config: self.config.voice_chat.clone(),
+            },
+            local_service,
+            config: self.config.clone(),
+        };
+
+        info!("Starting gRPC server on {}", addr);
+
+        // 创建服务器但不等待它完成
+        let server = Server::builder()
+            .add_service(ServerServiceServer::new(server_service))
+            .add_service(ModelServiceServer::new(model_service));
+
+        // 在后台启动服务器
+        tokio::spawn(async move {
+            if let Err(e) = server.serve(addr).await {
+                log::error!("gRPC server error: {}", e);
+            }
+        });
+
+        // 等待一小段时间确保服务器已启动
+        tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+
         Ok(())
     }
 }

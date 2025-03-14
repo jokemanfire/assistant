@@ -2,13 +2,13 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HttpConfig {
-    /// HTTP服务监听地址
+    /// HTTP service listen address
     pub host: String,
-    /// HTTP服务监听端口
+    /// HTTP service listen port
     pub port: u16,
-    /// 是否启用CORS
+    /// Whether to enable CORS
     pub enable_cors: bool,
-    /// 是否启用日志
+    /// Whether to enable logging
     pub enable_logging: bool,
 }
 
@@ -25,11 +25,11 @@ impl Default for HttpConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OpenAIConfig {
-    /// 是否启用OpenAI兼容API
+    /// Whether to enable OpenAI compatible API
     pub enabled: bool,
-    /// API密钥验证
+    /// API key verification
     pub api_keys: Vec<String>,
-    /// 模型映射，将OpenAI模型名映射到本地模型
+    /// Model mapping, map OpenAI model name to local model
     pub model_mapping: std::collections::HashMap<String, String>,
 }
 
@@ -39,7 +39,7 @@ impl Default for OpenAIConfig {
         model_mapping.insert("gpt-3.5-turbo".to_string(), "default".to_string());
         model_mapping.insert("gpt-4".to_string(), "default".to_string());
         model_mapping.insert("gpt-4o".to_string(), "default".to_string());
-        
+
         Self {
             enabled: true,
             api_keys: vec!["YOUR_API_KEY".to_string()],
@@ -61,4 +61,4 @@ impl Default for PluginsConfig {
             openai: OpenAIConfig::default(),
         }
     }
-} 
+}

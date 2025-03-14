@@ -18,6 +18,7 @@ pub struct Config {
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct ServerConfig {
     pub grpc_addr: Option<String>,
+    pub http_addr: Option<String>,
     pub try_max_time: Option<u32>,
 }
 

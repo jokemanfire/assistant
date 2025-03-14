@@ -5,7 +5,6 @@ edition = "2021"
 
 [dependencies]
 protos = { path = "../protos" }
-assistant-service = { path = "../service", optional = true }
 tokio = { workspace = true, features = ["full"] }
 axum = "0.7.4"
 serde = { workspace = true }
@@ -19,7 +18,9 @@ reqwest = { version = "0.12", features = ["json"] }
 tower = "0.4"
 http = "1.0"
 uuid = { version = "1.0", features = ["v4"] }
+tonic = "0.12.3"
+assistant-client = { path = "../client", optional = true }
 
 [features]
 default = []
-http_api = ["assistant-service"] 
+http_api = ["assistant-client"] 

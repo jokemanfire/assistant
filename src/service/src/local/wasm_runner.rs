@@ -7,8 +7,8 @@ use protos::grpc::model::{ChatMessage, Role};
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, Command, Stdio};
 use std::sync::Arc;
-use tokio::sync::Mutex;
 use std::thread;
+use tokio::sync::Mutex;
 
 pub struct WasmModelRunner {
     config: LocalModelConfig,
@@ -231,7 +231,7 @@ impl WasmModelRunner {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()?;
-        
+
         // start a thread to listen to stderr
         let mut process_with_stderr = process;
         if let Some(stderr) = process_with_stderr.stderr.take() {
