@@ -83,7 +83,7 @@ impl DialogueModel {
 
                 let body = response.text().await?;
                 let json_data: Value = serde_json::from_str(&body)?;
-                println!("debug : '{:?}' \n ---", json_data);
+                // println!("debug : '{:?}' \n ---", json_data);
 
                 Ok(json_data["choices"][0]["message"]["content"]
                     .as_str()

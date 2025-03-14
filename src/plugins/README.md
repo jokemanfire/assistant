@@ -4,7 +4,7 @@
 
 ## OpenAI兼容API
 
-这个插件提供了与OpenAI API兼容的HTTP接口，允许使用OpenAI客户端库或工具与Assistant服务进行交互。
+这个插件提供了与OpenAI API兼容的HTTP接口，允许使用OpenAI客户端库或工具与Assistant服务进行交互。实际上，API的配置不会使用，而是使用grpc接口，目的只是为了方便使用OpenAI的客户端库。
 
 ### 支持的接口
 
@@ -22,7 +22,7 @@ cargo build --features http_api
 2. 使用OpenAI客户端库或工具发送请求：
 
 ```bash
-curl https://api.openai.com/v1/chat/completions \
+curl http://localhost:50053/v1/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -d '{

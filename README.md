@@ -37,6 +37,10 @@ This project implements a C-S AI Service.
 3.support multiple models.
 4.support multiple services.
 
+### Support ChatBox Now
+you should build with feature `http_api`
+and then set the chatbox config like this:
+![示例](./images/chatbox.png)
 
 
 ### Local Model Implementation

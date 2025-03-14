@@ -5,10 +5,15 @@ use std::collections::HashMap;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Role {
+    #[serde(alias = "System", alias = "SYSTEM")]
     System,
+    #[serde(alias = "User", alias = "USER")]
     User,
+    #[serde(alias = "Assistant", alias = "ASSISTANT")]
     Assistant,
+    #[serde(alias = "Function", alias = "FUNCTION")]
     Function,
+    #[serde(alias = "Tool", alias = "TOOL")]
     Tool,
 }
 
@@ -51,6 +56,8 @@ pub struct ChatCompletionRequest {
 pub struct ChatCompletionChoice {
     pub index: u32,
     pub message: ChatMessage,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub logprobs: Option<String>,
     pub finish_reason: String,
 }
 
@@ -60,6 +67,10 @@ pub struct ChatCompletionUsage {
     pub prompt_tokens: u32,
     pub completion_tokens: u32,
     pub total_tokens: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub completion_tokens_details: Option<Vec<HashMap<String, u32>>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub system_fingerprint: Option<String>,
 }
 
 /// Chat completion response

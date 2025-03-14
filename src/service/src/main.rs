@@ -135,6 +135,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .filter(Some("actix_server"), log::LevelFilter::Off)
         .filter(Some("actix_web"), log::LevelFilter::Off)
         .filter(Some("h2"), log::LevelFilter::Off)
+        .filter(Some("tower_http"), log::LevelFilter::Off)
+        .filter(Some("hyper_util"), log::LevelFilter::Off)
+        .filter(Some("reqwest"), log::LevelFilter::Off)
         .init();
 
     // Parse command line arguments

@@ -65,10 +65,11 @@ impl OpenAIPlugin {
                 return Router::new()
                     .route("/v1/chat/completions", post(chat_completions))
                     .route("/v1/completions", post(completions))
-                    .layer(middleware::from_fn_with_state(
-                        state.clone(),
-                        verify_api_key,
-                    ))
+                    // Now we need to verify api key now
+                    // .layer(middleware::from_fn_with_state(
+                    //     state.clone(),
+                    //     verify_api_key,
+                    // ))
                     .with_state(state);
             }
         }

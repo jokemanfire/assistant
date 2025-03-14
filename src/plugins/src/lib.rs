@@ -8,20 +8,20 @@ use async_trait::async_trait;
 
 #[async_trait]
 pub trait Plugin: Send + Sync {
-    /// 获取插件名称
+    /// Get plugin name
     fn name(&self) -> &str;
 
-    /// 初始化插件
+    /// Initialize plugin
     async fn init(&mut self) -> Result<()>;
 
-    /// 启动插件
+    /// Start plugin
     async fn start(&self) -> Result<()>;
 
-    /// 停止插件
+    /// Stop plugin
     async fn stop(&self) -> Result<()>;
 }
 
-/// 插件管理器
+/// Plugin manager
 pub struct PluginManager {
     plugins: Vec<Box<dyn Plugin>>,
 }
