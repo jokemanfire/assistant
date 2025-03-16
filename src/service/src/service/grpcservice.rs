@@ -4,7 +4,8 @@ use crate::{config::Config, modeldeal::voice_chat::SpeechModel};
 use log::{debug, info, warn};
 use protos::grpc::model::{
     model_service_server::{ModelService as GrpcModelService, ModelServiceServer},
-    ChatMessage, SpeechRequest, SpeechResponse, TextRequest, TextResponse,
+    ChatMessage, SpeechRequest, SpeechResponse, StreamingRequest, StreamingResponse, TextRequest,
+    TextResponse,
 };
 use protos::grpc::mserver::server_service_client::ServerServiceClient;
 use protos::grpc::mserver::server_service_server::{ServerService, ServerServiceServer};
@@ -25,6 +26,7 @@ pub struct GrpcService {
     server: Server,
     config: Config,
     uuid: String,
+    stream_service: Option<Arc<crate::service::streamservice::StreamService>>,
 }
 
 // Server service implementation
@@ -40,53 +42,7 @@ pub struct ModelServiceImpl {
     speech_model: SpeechModel,
     local_service: Arc<crate::service::localservice::LocalService>,
     config: Config,
-}
-
-impl ModelServiceImpl {
-    /// 内部方法，供插件直接调用
-    pub async fn text_chat_internal(&self, messages: Vec<ChatMessage>) -> Result<String, Status> {
-        // 尝试远程模型
-        if !self.config.chat_model.remote_models.is_empty() {
-            match self.chat_model.get_response_online(messages.clone()).await {
-                Ok(response) => {
-                    return Ok(response);
-                }
-                Err(e) => warn!("Remote model failed: {}", e),
-            }
-        }
-
-        debug!("No remote model or remote failed, trying local model");
-        // 尝试本地模型
-        match timeout(
-            Duration::from_secs(AVAILABLE_RUNNERS_TIMEOUT),
-            // 在available_timeout内获取可用的runners
-            {
-                let local_service = self.local_service.clone();
-                tokio::spawn(async move {
-                    loop {
-                        let available_runners = local_service.available_runners().await;
-                        if available_runners > 0 {
-                            break;
-                        }
-                        tokio::time::sleep(Duration::from_millis(100)).await;
-                    }
-                })
-            },
-        )
-        .await
-        {
-            Ok(_) => match self.local_service.chat(messages.clone()).await {
-                Ok(response) => {
-                    return Ok(response);
-                }
-                Err(e) => warn!("Local model processing failed: {}", e),
-            },
-            Err(e) => warn!("No local model available: {}", e),
-        }
-
-        // 如果所有尝试都失败
-        Err(Status::internal("All processing attempts failed"))
-    }
+    stream_service: Option<Arc<crate::service::streamservice::StreamService>>,
 }
 
 #[tonic::async_trait]
@@ -168,6 +124,31 @@ impl GrpcModelService for ModelServiceImpl {
 
         // If all attempts fail
         Err(Status::internal("All processing attempts failed"))
+    }
+
+    // Stream text chat and return WebSocket URL
+    async fn streaming_text_chat(
+        &self,
+        request: Request<StreamingRequest>,
+    ) -> Result<Response<StreamingResponse>, Status> {
+        let req = request.into_inner();
+        info!("Received streaming text chat request: {:?}", req.messages);
+
+        // Check if stream service is available
+        if let Some(stream_service) = &self.stream_service {
+            // Generate WebSocket URL for streaming
+            let session_id = req.session_id.clone();
+            let ws_url = stream_service.generate_ws_url(req.messages, Some(session_id.clone()));
+
+            // Return the streaming response with WebSocket URL
+            return Ok(Response::new(StreamingResponse {
+                streaming_url: ws_url,
+                session_id,
+            }));
+        }
+
+        // Stream service not available
+        Err(Status::unavailable("Streaming service not available"))
     }
 }
 
@@ -280,6 +261,7 @@ impl ServerService for ServerServiceImpl {
                 },
                 local_service,
                 config: self.config.clone(),
+                stream_service: None,
             };
 
             // Process the request locally
@@ -393,35 +375,20 @@ impl GrpcService {
             server,
             config,
             uuid,
+            stream_service: None,
         })
     }
 
-    /// 获取模型服务实例，供插件使用
-    pub async fn get_model_service(&self) -> Result<Arc<ModelServiceImpl>, Box<dyn Error>> {
-        // 创建本地服务
-        let local_service = Arc::new(
-            crate::service::localservice::LocalService::new(
-                self.config.chat_model.local_models.clone(),
-            )
-            .await,
-        );
+    // Initialize stream service
+    pub async fn init_stream_service(&mut self) -> Result<(), Box<dyn Error>> {
+        let stream_service =
+            Arc::new(crate::service::streamservice::StreamService::new(self.config.clone()).await?);
 
-        // 创建模型服务
-        let model_service = Arc::new(ModelServiceImpl {
-            chat_model: DialogueModel {
-                config: self.config.chat_model.clone(),
-            },
-            voice_model: VoiceModel {
-                config: self.config.chat_voice.clone(),
-            },
-            speech_model: SpeechModel {
-                config: self.config.voice_chat.clone(),
-            },
-            local_service,
-            config: self.config.clone(),
-        });
+        // Start the WebSocket server in the background
+        stream_service.start_in_background().await.unwrap();
 
-        Ok(model_service)
+        self.stream_service = Some(stream_service);
+        Ok(())
     }
 
     pub async fn start(&mut self) -> Result<(), Box<dyn Error + Send + Sync>> {
@@ -459,6 +426,7 @@ impl GrpcService {
             },
             local_service,
             config: self.config.clone(),
+            stream_service: self.stream_service.clone(),
         };
 
         info!("Starting gRPC server on {}", addr);
@@ -505,6 +473,7 @@ impl GrpcService {
             },
             local_service,
             config: self.config.clone(),
+            stream_service: self.stream_service.clone(),
         };
 
         info!("Starting gRPC server on {}", addr);

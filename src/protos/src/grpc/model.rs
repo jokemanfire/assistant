@@ -29,6 +29,30 @@ pub struct TextResponse {
     /// Generated text response
     #[prost(string, tag = "1")]
     pub text: ::prost::alloc::string::String,
+    /// Add streaming URL field for streaming responses
+    ///
+    /// WebSocket URL for streaming responses
+    #[prost(string, tag = "2")]
+    pub streaming_url: ::prost::alloc::string::String,
+}
+/// Streaming request message
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct StreamingRequest {
+    #[prost(message, repeated, tag = "1")]
+    pub messages: ::prost::alloc::vec::Vec<ChatMessage>,
+    /// Optional session ID for tracking the streaming session
+    #[prost(string, tag = "2")]
+    pub session_id: ::prost::alloc::string::String,
+}
+/// Streaming response message
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct StreamingResponse {
+    /// WebSocket URL for streaming responses
+    #[prost(string, tag = "1")]
+    pub streaming_url: ::prost::alloc::string::String,
+    /// Session ID for the streaming session
+    #[prost(string, tag = "2")]
+    pub session_id: ::prost::alloc::string::String,
 }
 /// Speech synthesis response
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -209,6 +233,22 @@ pub mod model_service_client {
                 .insert(GrpcMethod::new("model.ModelService", "TextToSpeech"));
             self.inner.unary(req, path, codec).await
         }
+        /// Stream text chat responses
+        pub async fn streaming_text_chat(
+            &mut self,
+            request: impl tonic::IntoRequest<super::StreamingRequest>,
+        ) -> std::result::Result<tonic::Response<super::StreamingResponse>, tonic::Status> {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path =
+                http::uri::PathAndQuery::from_static("/model.ModelService/StreamingTextChat");
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("model.ModelService", "StreamingTextChat"));
+            self.inner.unary(req, path, codec).await
+        }
     }
 }
 /// Generated server implementations.
@@ -239,6 +279,11 @@ pub mod model_service_server {
             &self,
             request: tonic::Request<super::TextRequest>,
         ) -> std::result::Result<tonic::Response<super::SpeechResponse>, tonic::Status>;
+        /// Stream text chat responses
+        async fn streaming_text_chat(
+            &self,
+            request: tonic::Request<super::StreamingRequest>,
+        ) -> std::result::Result<tonic::Response<super::StreamingResponse>, tonic::Status>;
     }
     /// Model service definition
     #[derive(Debug)]
@@ -416,6 +461,47 @@ pub mod model_service_server {
                     let inner = self.inner.clone();
                     let fut = async move {
                         let method = TextToSpeechSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/model.ModelService/StreamingTextChat" => {
+                    #[allow(non_camel_case_types)]
+                    struct StreamingTextChatSvc<T: ModelService>(pub Arc<T>);
+                    impl<T: ModelService> tonic::server::UnaryService<super::StreamingRequest>
+                        for StreamingTextChatSvc<T>
+                    {
+                        type Response = super::StreamingResponse;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::StreamingRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as ModelService>::streaming_text_chat(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = StreamingTextChatSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

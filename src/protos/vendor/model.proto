@@ -30,6 +30,20 @@ message TextRequest {
 // Text response from the model
 message TextResponse {
   string text = 1;  // Generated text response
+  // Add streaming URL field for streaming responses
+  string streaming_url = 2; // WebSocket URL for streaming responses
+}
+
+// Streaming request message
+message StreamingRequest {
+  repeated ChatMessage messages = 1;
+  string session_id = 2; // Optional session ID for tracking the streaming session
+}
+
+// Streaming response message
+message StreamingResponse {
+  string streaming_url = 1; // WebSocket URL for streaming responses
+  string session_id = 2;    // Session ID for the streaming session
 }
 
 // Speech synthesis response
@@ -48,4 +62,7 @@ service ModelService {
   
   // Convert text to speech
   rpc TextToSpeech (TextRequest) returns (SpeechResponse);
+  
+  // Stream text chat responses
+  rpc StreamingTextChat (StreamingRequest) returns (StreamingResponse);
 }

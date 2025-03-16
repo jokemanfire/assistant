@@ -27,4 +27,12 @@ impl LocalService {
         debug!("Available runners: {}", r);
         r
     }
+    // chat stream
+    pub async fn chat_stream(
+        &self,
+        messages: Vec<ChatMessage>,
+    ) -> anyhow::Result<tokio::sync::mpsc::Receiver<String>> {
+        let rx = self.model_manager.submit_stream_request(messages).await?;
+        Ok(rx)
+    }
 }

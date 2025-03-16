@@ -120,12 +120,35 @@ async fn main() -> Result<()> {
                 messages.push(AssistantClient::create_user_message(input));
 
                 // Get response
-                match client.chat(messages.clone()).await {
-                    Ok(response) => {
-                        println!("Assistant: {}", response);
+                match client.chat_stream(messages.clone()).await {
+                    Ok(mut stream) => {
+                        print!("Assistant: ");
+                        stdout.flush()?;
 
-                        // Add assistant response to message history
-                        messages.push(AssistantClient::create_assistant_message(&response));
+                        let mut full_response = String::new();
+
+                        // receive stream response
+                        while let Some(chunk) = stream.recv().await {
+                            // check if error
+                            if chunk.starts_with("Error:") || chunk.starts_with("Failed to connect")
+                            {
+                                error!("{}", chunk);
+                                println!("\nError: Failed to get streaming response.");
+                                break;
+                            }
+
+                            // print chunk
+                            print!("{}", chunk);
+                            stdout.flush()?;
+
+                            // accumulate full response
+                            full_response.push_str(&chunk);
+                        }
+
+                        println!(); // 换行
+
+                        // add assistant response to message history
+                        messages.push(AssistantClient::create_assistant_message(&full_response));
                     }
                     Err(e) => {
                         error!("Error: {}", e);

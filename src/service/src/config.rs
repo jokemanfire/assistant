@@ -19,6 +19,7 @@ pub struct Config {
 pub struct ServerConfig {
     pub grpc_addr: Option<String>,
     pub http_addr: Option<String>,
+    pub ws_addr: Option<String>, // WebSocket server address
     pub try_max_time: Option<u32>,
 }
 

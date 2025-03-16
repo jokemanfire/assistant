@@ -1,216 +1,254 @@
-use crate::config::ChatTemplateConfig;
 use crate::config::LocalModelConfig;
 use crate::local::manager::ModelRequest;
-use anyhow::Result;
-use log::{debug, error, warn};
+use anyhow::{anyhow, Result};
+use log::debug;
+use log::{error, info, warn};
 use protos::grpc::model::{ChatMessage, Role};
-use std::io::{BufRead, BufReader, Write};
+use std::io::{BufRead, BufReader, Read, Write};
 use std::process::{Child, Command, Stdio};
 use std::sync::Arc;
-use std::thread;
+use tokio::sync::mpsc::Sender;
 use tokio::sync::Mutex;
+
+use super::LocalRunner;
 
 pub struct WasmModelRunner {
     config: LocalModelConfig,
     process: Option<Arc<Mutex<Child>>>,
-    chat_templates: ChatTemplateConfig,
 }
-/// todo change touse sdk
+
 impl WasmModelRunner {
     pub fn new(config: LocalModelConfig) -> Result<Self> {
-        let chat_templates = ChatTemplateConfig::new();
         Ok(Self {
             config,
             process: None,
-            chat_templates,
         })
     }
 
-    pub async fn deal_request(
-        &self,
-        request: ModelRequest,
-    ) -> Result<String, Box<dyn std::error::Error>> {
-        if let Some(process) = &self.process {
-            let mut process = process.lock().await;
-            debug!("model_type: {}", self.config.model_type);
-            // get template
-            let template = self
-                .chat_templates
-                .get_template(&self.config.model_type.to_lowercase());
+    // Format the prompt based on the model type and messages
+    fn format_prompt(&self, messages: &[ChatMessage]) -> String {
+        let mut prompt = String::new();
+        let system_prompt = messages.iter().find(|m| m.role == Role::System as i32).map(|m| m.content.clone());
 
-            // Create conversation content
-            let mut conversation_content = String::new();
+        // Format based on model type
+        match self.config.model_type.as_str() {
+            "deepseek-ai" => {
+                for msg in messages {
+                    let role = match msg.role() {
+                        Role::User => "User",
+                        Role::Assistant => "Assistant",
+                        Role::System => "System",
+                        _ => "User",
+                    };
 
-            // Get system prompt (if any)
-            let system_prompt = request.system_prompt.clone().unwrap_or_else(|| {
-                // Find system message in messages
-                request
-                    .messages
-                    .iter()
-                    .find(|msg| msg.role == Role::System as i32)
-                    .map(|msg| msg.content.clone())
-                    .unwrap_or_default()
-            });
-
-            // Add system message
-            if !system_prompt.is_empty() {
-                let system_msg = template.system.replace("{system_prompt}", &system_prompt);
-                conversation_content.push_str(&system_msg);
-                conversation_content.push_str("\n");
-            }
-
-            // Add user and assistant messages in order (ignore system message, as it was handled separately)
-            for msg in request
-                .messages
-                .iter()
-                .filter(|m| m.role != Role::System as i32)
-            {
-                if msg.role == Role::User as i32 {
-                    let user_msg = template.user.replace("{prompt}", &msg.content);
-                    conversation_content.push_str(&user_msg);
-                    conversation_content.push_str("\n");
-                } else if msg.role == Role::Assistant as i32 {
-                    let assistant_msg = template.assistant.replace("{content}", &msg.content);
-                    conversation_content.push_str(&assistant_msg);
-                    conversation_content.push_str("\n");
+                    if role == "System" {
+                        prompt.push_str(&format!("<|system|>\n{}\n", msg.content));
+                    } else {
+                        prompt.push_str(&format!("<|{}|>\n{}\n", role, msg.content));
+                    }
                 }
+
+                // Add the assistant prefix for the response
+                prompt.push_str("<|assistant|>\n");
             }
-
-            // Add final assistant prompt to indicate that the model should respond
-            conversation_content.push_str(&template.assistant);
-
-            // Format final prompt based on model type
-            let formatted_prompt = match self.config.model_type.to_lowercase().as_str() {
-                "qwen" => {
-                    // Qwen format: <|im_start|>system\n{system}<|im_end|>\n<|im_start|>user\n{user}<|im_end|>\n<|im_start|>assistant\n{assistant}<|im_end|>
-                    let mut prompt = String::new();
-
-                    // Add system message if available
-                    if !system_prompt.is_empty() {
+            _ => {
+                // Qwen format: <|im_start|>system\n{system}<|im_end|>\n<|im_start|>user\n{user}<|im_end|>\n<|im_start|>assistant\n{assistant}<|im_end|>
+                // Add system message if available
+                if let Some(system_prompt) = system_prompt {
+                    prompt.push_str(&format!(
+                        "<|im_start|>system\n{}\n<|im_end|>\n",
+                        system_prompt
+                    ));
+                }else{
+                    prompt.push_str(&format!(
+                        "<|im_start|>system\n{}\n<|im_end|>\n",
+                        "you are a helpful assistant"
+                    ));
+                }
+                // Add conversation history
+                for msg in messages
+                    .iter()
+                    .filter(|m| m.role != Role::System as i32)
+                {
+                    if msg.role == Role::User as i32 {
                         prompt.push_str(&format!(
-                            "<|im_start|>system\n{}\n<|im_end|>\n",
-                            system_prompt
+                            "<|im_start|>user\n{}\n<|im_end|>\n",
+                            msg.content
+                        ));
+                    } else if msg.role == Role::Assistant as i32 {
+                        prompt.push_str(&format!(
+                            "<|im_start|>assistant\n{}\n<|im_end|>\n",
+                            msg.content
                         ));
                     }
-
-                    // Add conversation history
-                    for msg in request
-                        .messages
-                        .iter()
-                        .filter(|m| m.role != Role::System as i32)
-                    {
-                        if msg.role == Role::User as i32 {
-                            prompt.push_str(&format!(
-                                "<|im_start|>user\n{}\n<|im_end|>\n",
-                                msg.content
-                            ));
-                        } else if msg.role == Role::Assistant as i32 {
-                            prompt.push_str(&format!(
-                                "<|im_start|>assistant\n{}\n<|im_end|>\n",
-                                msg.content
-                            ));
-                        }
-                    }
-
-                    // Add assistant prompt
-                    prompt.push_str("<|im_start|>assistant\n");
-                    prompt
                 }
-                "deepseek" | "deepseek-ai" => {
-                    // DeepSeek format: <|system|>\n{system}\n<|user|>\n{user}\n<|assistant|>\n{assistant}
-                    let mut prompt = String::new();
 
-                    // Add system message if available
-                    if !system_prompt.is_empty() {
-                        prompt.push_str(&format!("<|system|>\n{}\n", system_prompt));
-                    }
-
-                    // Add conversation history
-                    for msg in request
-                        .messages
-                        .iter()
-                        .filter(|m| m.role != Role::System as i32)
-                    {
-                        if msg.role == Role::User as i32 {
-                            prompt.push_str(&format!("<|user|>\n{}\n", msg.content));
-                        } else if msg.role == Role::Assistant as i32 {
-                            prompt.push_str(&format!("<|assistant|>\n{}\n", msg.content));
-                        }
-                    }
-
-                    // Add assistant prompt
-                    prompt.push_str("<|assistant|>\n");
-                    prompt
-                }
-                _ => {
-                    // Generic template fallback using conversation template
-                    template
-                        .chat_template
-                        .replace("{conversation}", &conversation_content)
-                }
-            };
-
-            // send prompt
-            let stdin = process.stdin.as_mut().ok_or("Failed to get stdin")?;
-            debug!("formatted_prompt:\n{}", formatted_prompt);
-            write!(stdin, "{}", formatted_prompt)?;
-            stdin.write_all(&[0])?;
-            stdin.flush()?;
-
-            // read response
-            let stdout = process.stdout.as_mut().ok_or("Failed to get stdout")?;
-            let mut reader = BufReader::new(stdout);
-            let mut response = Vec::new();
-            reader.read_until(b'\0', &mut response)?;
-
-            // handle response
-            let response_str = String::from_utf8(response)?;
-
-            // Check if response contains error information
-            if response_str.contains("bot:ERROR:") {
-                let error_msg = response_str.replace("bot:ERROR:", "").trim().to_string();
-                error!("WASM error: {}", error_msg);
-                return Err(error_msg.into());
+                // Add assistant prompt
+                prompt.push_str("<|im_start|>assistant\n");
             }
-
-            // parse response, remove prefix
-            let mut parsed_response = if response_str.starts_with("bot:") {
-                response_str[4..].to_string()
-            } else {
-                response_str
-            };
-
-            // Check if response is empty
-            if parsed_response.trim().is_empty() {
-                warn!("Empty response from WASM model");
-                return Err("Model returned empty response. Try with a different prompt.".into());
-            }
-
-            // Post-process response based on model type
-            match self.config.model_type.to_lowercase().as_str() {
-                "qwen" => {
-                    // Remove <|im_end|> if present
-                    if let Some(end_pos) = parsed_response.find("<|im_end|>") {
-                        parsed_response = parsed_response[..end_pos].to_string();
-                    }
-                }
-                "deepseek" | "deepseek-ai" => {
-                    // Remove end markers if present
-                    if let Some(end_pos) = parsed_response.find(" ") {
-                        parsed_response = parsed_response[..end_pos].to_string();
-                    }
-                }
-                _ => {}
-            }
-
-            debug!("Response: {}", &parsed_response);
-            Ok(parsed_response)
-        } else {
-            Err("WASM process not started".into())
         }
+
+        prompt
     }
 
-    pub async fn run(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+    // Process the model's response
+    fn process_response(&self, response_str: &str) -> String {
+                // Check if response contains error information
+        if response_str.contains("bot:ERROR:") {
+            let error_msg = response_str.replace("bot:ERROR:", "").trim().to_string();
+            error!("WASM error: {}", error_msg);
+        }
+
+        // parse response, remove prefix
+        let mut parsed_response = if response_str.starts_with("bot:") 
+        {
+            response_str[4..].to_string()
+        } else {
+            response_str.to_string()
+        };
+
+        // Check if response is empty
+        if parsed_response.trim().is_empty() {
+            warn!("Empty response from WASM model");
+        }
+        // Remove any special tokens or formatting from the response
+        match self.config.model_type.to_lowercase().as_str() {
+            "qwen" => {
+                // Remove <|im_end|> if present
+                if let Some(end_pos) = parsed_response.find("<|im_end|>") {
+                    parsed_response = parsed_response[..end_pos].to_string();
+                }
+            }
+            "deepseek" | "deepseek-ai" => {
+                // Remove end markers if present
+                if let Some(end_pos) = parsed_response.find(" ") {
+                    parsed_response = parsed_response[..end_pos].to_string();
+                }
+            }
+            _ => {}
+        }
+        parsed_response
+    }
+}
+
+#[async_trait::async_trait]
+impl LocalRunner for WasmModelRunner {
+    async fn deal_request(&self, request: ModelRequest) -> Result<String> {
+        if self.process.is_none() {
+            return Err(anyhow!("Process not started"));
+        }
+
+        // format prompt
+        let prompt = self.format_prompt(&request.messages);
+        // send prompt
+        let mut process = self.process.as_ref().unwrap().lock().await;
+        let stdin = process.stdin.as_mut().ok_or(anyhow!("Failed to get stdin"))?;
+        debug!("formatted_prompt:\n{}", prompt);
+        write!(stdin, "{}", prompt)?;
+        stdin.write_all(&[0])?;
+        stdin.flush()?;
+
+        // read response
+        let stdout = process.stdout.as_mut().ok_or(anyhow!("Failed to get stdout"))?;
+        let mut reader = BufReader::new(stdout);
+        let mut response = Vec::new();
+        reader.read_until(b'\0', &mut response)?;
+
+        // handle response
+        let response_str = String::from_utf8(response)?;
+
+        // Post-process response based on model type
+        let parsed_response = self.process_response(&response_str);
+        debug!("Response: {}", &parsed_response);
+        Ok(parsed_response)
+    }
+
+    async fn deal_stream_request(
+        &self,
+        request: ModelRequest,
+        sender: &Sender<String>,
+    ) -> Result<()> {
+        if self.process.is_none() {
+            return Err(anyhow!("Process not started"));
+        }
+
+        // format prompt
+        let prompt = self.format_prompt(&request.messages);
+        
+        // send prompt
+        let mut process = self.process.as_ref().unwrap().lock().await;
+        let stdin = process.stdin.as_mut().ok_or(anyhow!("Failed to get stdin"))?;
+        debug!("stream formatted_prompt:\n{}", prompt);
+        write!(stdin, "{}", prompt)?;
+        stdin.write_all(&[0])?;
+        stdin.flush()?;
+
+        // read response in chunks
+        let stdout = process.stdout.as_mut().ok_or(anyhow!("Failed to get stdout"))?;
+        let mut reader = BufReader::new(stdout);
+        let mut accumulated = Vec::new();
+        let mut buffer = Vec::new();
+        
+        // read response in chunks
+        loop {
+            buffer.clear();
+            let bytes_read = reader.read_until(b'\n', &mut buffer)?;
+            
+            if bytes_read == 0 {
+                // EOF reached
+                break;
+            }
+            
+            // accumulate data
+            accumulated.extend_from_slice(&buffer);
+            
+            // check if null terminator is reached
+            if let Some(pos) = accumulated.iter().position(|&b| b == 0) {
+                // process data until null terminator
+                if let Ok(chunk_str) = String::from_utf8(accumulated[..pos].to_vec()) {
+                    let processed_chunk = self.process_response(&chunk_str);
+                    if !processed_chunk.is_empty() {
+                        if let Err(e) = sender.send(processed_chunk).await {
+                            error!("Failed to send final chunk: {}", e);
+                        }
+                    }
+                }
+                break;
+            }
+            
+            // if accumulated enough data, process and send
+            if accumulated.len() > 64 {
+                if let Ok(chunk_str) = String::from_utf8(accumulated.clone()) {
+                    let processed_chunk = self.process_response(&chunk_str);
+                    if !processed_chunk.is_empty() {
+                        if let Err(e) = sender.send(processed_chunk).await {
+                            error!("Failed to send chunk: {}", e);
+                            break;
+                        }
+                    }
+                    accumulated.clear();
+                }
+            }
+        }
+
+        // process remaining data
+        if !accumulated.is_empty() {
+            if let Ok(chunk_str) = String::from_utf8(accumulated) {
+                let processed_chunk = self.process_response(&chunk_str);
+                if !processed_chunk.is_empty() {
+                    if let Err(e) = sender.send(processed_chunk).await {
+                        error!("Failed to send final chunk: {}", e);
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    async fn run(&mut self) -> Result<()> {
+        info!("Starting WASM runner with config: {:?}", self.config);
+
         // start wasmedge process
         let process = Command::new("wasmedge")
             .arg("--dir")
@@ -235,7 +273,7 @@ impl WasmModelRunner {
         // start a thread to listen to stderr
         let mut process_with_stderr = process;
         if let Some(stderr) = process_with_stderr.stderr.take() {
-            thread::spawn(move || {
+            tokio::spawn(async move {
                 let stderr_reader = BufReader::new(stderr);
                 for line in stderr_reader.lines() {
                     if let Ok(line) = line {
@@ -248,86 +286,8 @@ impl WasmModelRunner {
         self.process = Some(Arc::new(Mutex::new(process_with_stderr)));
         Ok(())
     }
-}
 
-impl Drop for WasmModelRunner {
-    fn drop(&mut self) {
-        if let Some(process) = &self.process {
-            // try lock and kill
-            if let Ok(mut process) = process.try_lock() {
-                let _ = process.kill();
-            }
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use protos::grpc::model::{ChatMessage, Role};
-
-    use super::*;
-
-    #[tokio::test]
-    async fn test_run_qwen() {
-        println!("test_run");
-        let mut runner = WasmModelRunner::new(LocalModelConfig {
-            enabled: true,
-            priority: 1,
-            wasm_path: "/home/hu/code/assistant/target/wasm32-wasi/release/wasme-ggml.wasm"
-                .to_string(),
-            model_path: "/home/hu/code/assistant/models/qwen1_5-0_5b-chat-q2_k.gguf".to_string(),
-            n_gpu_layers: 0,
-            ctx_size: 1024,
-            instance_count: 0,
-            model_type: "qwen".to_string(),
-            stream: true,
-        })
-        .unwrap();
-
-        runner.run().await.unwrap();
-        let response = runner
-            .deal_request(ModelRequest {
-                messages: vec![ChatMessage {
-                    role: Role::User.into(),
-                    content: "Hello, how are you?".to_string(),
-                    ..Default::default()
-                }],
-                request_id: "1".to_string(),
-                parameters: None,
-                system_prompt: Some("You are a helpful assistant.".to_string()),
-            })
-            .await
-            .unwrap();
-        println!("get result from wasm: {}", response);
-    }
-    #[tokio::test]
-    async fn test_run_deepseek() {
-        println!("test_run_deepseek");
-        let mut runner = WasmModelRunner::new(LocalModelConfig {
-            enabled: true,
-            priority: 1,
-            wasm_path: "/home/hu/code/assistant/target/wasm32-wasi/release/wasme-ggml.wasm".to_string(),
-            model_path: "/home/hu/code/assistant/models/deepseek-ai.DeepSeek-R1-Distill-Qwen-1.5B.Q4_K_M.gguf".to_string(),
-            n_gpu_layers: 0,
-            ctx_size: 2048,
-            instance_count: 0,
-            model_type: "deepseek-ai".to_string(),
-            stream: true,
-        }).unwrap();
-        runner.run().await.unwrap();
-        let response = runner
-            .deal_request(ModelRequest {
-                messages: vec![ChatMessage {
-                    role: Role::User.into(),
-                    content: "Hello, how are you?".to_string(),
-                    ..Default::default()
-                }],
-                request_id: "1".to_string(),
-                parameters: None,
-                system_prompt: Some("You are a helpful assistant.".to_string()),
-            })
-            .await
-            .unwrap();
-        println!("get result from wasm: {}", response);
+    fn is_ready(&self) -> bool {
+        self.process.is_some()
     }
 }

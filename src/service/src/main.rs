@@ -43,6 +43,15 @@ impl MainServer {
     pub async fn run(&mut self) -> Result<(), Box<dyn Error>> {
         info!("Starting gRPC service...");
 
+        // Initialize the streaming service first
+        {
+            let mut service = self.grpc_service.lock().await;
+            info!("Initializing streaming service...");
+            service.init_stream_service().await?;
+            info!("Streaming service initialized");
+        }
+
+        // Start the gRPC service
         let service = self.grpc_service.lock().await;
         service.start_in_background().await.unwrap();
         drop(service);

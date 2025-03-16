@@ -1,4 +1,5 @@
 use super::wasm_runner::WasmModelRunner;
+use super::LocalRunner;
 use crate::config::LocalModelConfig;
 use protos::grpc::model::ChatMessage;
 use serde::{Deserialize, Serialize};
@@ -19,13 +20,6 @@ pub struct ModelRequest {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ModelParameters {
-    pub temperature: Option<f32>,
-    pub top_p: Option<f32>,
-    pub max_tokens: Option<u32>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ModelResponse {
     pub text: String,
     pub request_id: String,
@@ -42,7 +36,7 @@ pub enum ResponseStatus {
 
 #[derive(Clone)]
 pub struct ModelRunner {
-    wasm_runner: Arc<Mutex<WasmModelRunner>>,
+    runner: Arc<Mutex<Box<dyn LocalRunner + Send>>>,
     request_sender: Sender<ModelRequest>,
     result_receiver: Arc<Mutex<Receiver<ModelResponse>>>,
 }
@@ -58,6 +52,7 @@ pub struct ModelManager {
         Arc<Mutex<mpsc::Receiver<ModelRequest>>>,
     ),
     response_senders: Arc<Mutex<HashMap<String, Sender<ModelResponse>>>>,
+    stream_response_senders: Arc<Mutex<HashMap<String, Sender<String>>>>,
 }
 
 impl ModelManager {
@@ -70,6 +65,7 @@ impl ModelManager {
             configs,
             request_queue: (Arc::new(request_tx), Arc::new(Mutex::new(request_rx))),
             response_senders: Arc::new(Mutex::new(HashMap::new())),
+            stream_response_senders: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -83,7 +79,8 @@ impl ModelManager {
     }
 
     async fn create_model(&self, wasm_config: &LocalModelConfig) -> anyhow::Result<()> {
-        let mut runner = WasmModelRunner::new(wasm_config.clone())?;
+        let mut runner: Box<dyn LocalRunner + Send> =
+            Box::new(WasmModelRunner::new(wasm_config.clone())?);
         // start runner
         runner.run().await.unwrap();
         let (request_tx, request_rx) = mpsc::channel(32);
@@ -92,42 +89,77 @@ impl ModelManager {
         let runner = Arc::new(Mutex::new(runner));
         let runner_clone = runner.clone();
         let response_senders = self.response_senders.clone();
+        let stream_response_senders = self.stream_response_senders.clone();
 
         tokio::spawn(async move {
             let mut rx: Receiver<ModelRequest> = request_rx;
             // If get the model request, deal with it
             while let Some(request) = rx.recv().await {
                 let runner = runner_clone.lock().await;
-                let response = match runner.deal_request(request.clone()).await {
-                    Ok(text) => ModelResponse {
-                        text,
-                        request_id: request.request_id.clone(),
-                        status: ResponseStatus::Success,
-                        error: None,
-                    },
-                    Err(e) => ModelResponse {
-                        text: String::new(),
-                        request_id: request.request_id.clone(),
-                        status: ResponseStatus::Error,
-                        error: Some(e.to_string()),
-                    },
-                };
-                // If get the response, send to the target id response sender
-                if let Some(sender) = response_senders
+
+                // Check if this is a streaming request by looking for a stream sender
+                let is_streaming = stream_response_senders
                     .lock()
                     .await
-                    .get_mut(&request.request_id)
-                    .map(|sender| sender.clone())
-                {
-                    let _ = sender.send(response).await;
+                    .contains_key(&request.request_id);
+
+                if is_streaming {
+                    // Handle streaming request
+                    if let Some(sender) = stream_response_senders
+                        .lock()
+                        .await
+                        .get_mut(&request.request_id)
+                        .map(|sender| sender.clone())
+                    {
+                        match runner.deal_stream_request(request.clone(), &sender).await {
+                            Ok(_) => {
+                                // Streaming completed successfully
+                            }
+                            Err(e) => {
+                                // Send error message to the stream
+                                let _ = sender.send(format!("Error: {}", e)).await;
+                            }
+                        }
+                    }
+                } else {
+                    // Handle regular request
+                    let response = match runner.deal_request(request.clone()).await {
+                        Ok(text) => ModelResponse {
+                            text,
+                            request_id: request.request_id.clone(),
+                            status: ResponseStatus::Success,
+                            error: None,
+                        },
+                        Err(e) => ModelResponse {
+                            text: String::new(),
+                            request_id: request.request_id.clone(),
+                            status: ResponseStatus::Error,
+                            error: Some(e.to_string()),
+                        },
+                    };
+                    // If get the response, send to the target id response sender
+                    if let Some(sender) = response_senders
+                        .lock()
+                        .await
+                        .get_mut(&request.request_id)
+                        .map(|sender| sender.clone())
+                    {
+                        let _ = sender.send(response).await;
+                    }
                 }
+
+                // Clean up the sender after processing
+                stream_response_senders
+                    .lock()
+                    .await
+                    .remove(&request.request_id);
             }
         });
 
         self.model_channel
             .0
             .send(ModelRunner {
-                wasm_runner: runner,
+                runner,
                 request_sender: request_tx,
                 result_receiver: Arc::new(Mutex::new(result_rx)),
             })
@@ -200,6 +232,33 @@ impl ModelManager {
                 })
             }
         }
+    }
+
+    pub async fn submit_stream_request(
+        &self,
+        messages: Vec<ChatMessage>,
+    ) -> anyhow::Result<mpsc::Receiver<String>> {
+        let request_id = uuid::Uuid::new_v4().to_string();
+        let (stream_tx, stream_rx) = mpsc::channel(32);
+
+        // register stream response receiver
+        self.stream_response_senders
+            .lock()
+            .await
+            .insert(request_id.clone(), stream_tx);
+
+        // create request
+        let request = ModelRequest {
+            messages,
+            parameters: None,
+            request_id: request_id.clone(),
+            system_prompt: None,
+        };
+
+        // add request to queue
+        self.request_queue.0.send(request).await?;
+
+        Ok(stream_rx)
     }
 
     // get available runners

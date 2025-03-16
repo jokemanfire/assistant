@@ -1,6 +1,7 @@
 [server]
 grpc_addr = "0.0.0.0:50051"
 http_addr = "0.0.0.0:8000"
+ws_addr = "0.0.0.0:8080"  # WebSocket server address
 try_max_time = 3
 
 [remote_server]

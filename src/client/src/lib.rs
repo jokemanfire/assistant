@@ -1,13 +1,19 @@
 use std::time::Duration;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
+use futures_util::{SinkExt, StreamExt};
+use protos::grpc::model::StreamingRequest;
 use protos::grpc::model::{
     model_service_client::ModelServiceClient, ChatMessage, Role, SpeechRequest, TextRequest,
 };
 use protos::grpc::mserver::{
     server_service_client::ServerServiceClient, Empty, ModelListResponse, ModelStatusRequest,
 };
+use tokio::sync::mpsc;
+use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
 use tonic::transport::Channel;
+use url::Url;
+use uuid::Uuid;
 
 /// Assistant client for interacting with the gRPC service
 pub struct AssistantClient {
@@ -67,6 +73,67 @@ impl AssistantClient {
         let request = TextRequest { messages };
         let response = self.model_client.text_chat(request).await?;
         Ok(response.into_inner().text)
+    }
+
+    /// Chat with streaming response - returns WebSocket URL
+    pub async fn get_streaming_url(&mut self, messages: Vec<ChatMessage>) -> Result<String> {
+        let request = StreamingRequest {
+            messages,
+            session_id: Uuid::new_v4().to_string(),
+        };
+        let response = self.model_client.streaming_text_chat(request).await?;
+        Ok(response.into_inner().streaming_url)
+    }
+
+    /// Chat with streaming response - connects to WebSocket and returns a channel with responses
+    pub async fn chat_stream(
+        &mut self,
+        messages: Vec<ChatMessage>,
+    ) -> Result<mpsc::Receiver<String>> {
+        // 获取WebSocket URL
+        let ws_url = self.get_streaming_url(messages).await?;
+
+        // 创建一个通道用于发送接收到的消息
+        let (tx, rx) = mpsc::channel(32);
+
+        // 解析URL
+        let url = Url::parse(&ws_url).map_err(|e| anyhow!("Invalid WebSocket URL: {}", e))?;
+
+        // 在后台任务中连接WebSocket并处理消息
+        tokio::spawn(async move {
+            match connect_async(url).await {
+                Ok((ws_stream, _)) => {
+                    let (_, mut read) = ws_stream.split();
+
+                    // 读取WebSocket消息
+                    while let Some(message) = read.next().await {
+                        match message {
+                            Ok(Message::Text(text)) => {
+                                // 发送接收到的文本消息
+                                if tx.send(text).await.is_err() {
+                                    break;
+                                }
+                            }
+                            Ok(Message::Close(_)) => {
+                                break;
+                            }
+                            Err(e) => {
+                                let _ = tx.send(format!("Error: {}", e)).await;
+                                break;
+                            }
+                            _ => {} // 忽略其他类型的消息
+                        }
+                    }
+                }
+                Err(e) => {
+                    let _ = tx
+                        .send(format!("Failed to connect to WebSocket: {}", e))
+                        .await;
+                }
+            }
+        });
+
+        Ok(rx)
     }
 
     /// Helper function to create a user message
