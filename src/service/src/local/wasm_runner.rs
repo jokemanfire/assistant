@@ -32,7 +32,7 @@ impl WasmModelRunner {
 
         // Format based on model type
         match self.config.model_type.as_str() {
-            "deepseek-ai" => {
+            "deepseek-ai" | "deepseek" => {
                 for msg in messages {
                     let role = match msg.role() {
                         Role::User => "User",
@@ -42,14 +42,14 @@ impl WasmModelRunner {
                     };
 
                     if role == "System" {
-                        prompt.push_str(&format!("<|system|>\n{}\n", msg.content));
+                        prompt.push_str(&format!("[INST]{}\n[/INST]", msg.content));
                     } else {
-                        prompt.push_str(&format!("<|{}|>\n{}\n", role, msg.content));
+                        prompt.push_str(&format!("[INST]{}[/INST]\n", msg.content));
                     }
                 }
 
                 // Add the assistant prefix for the response
-                prompt.push_str("<|assistant|>\n");
+                prompt.push_str("\n[INST]");
             }
             _ => {
                 // Qwen format: <|im_start|>system\n{system}<|im_end|>\n<|im_start|>user\n{user}<|im_end|>\n<|im_start|>assistant\n{assistant}<|im_end|>
@@ -93,7 +93,7 @@ impl WasmModelRunner {
 
     // Process the model's response
     fn process_response(&self, response_str: &str) -> String {
-                // Check if response contains error information
+        // Check if response contains error information
         if response_str.contains("bot:ERROR:") {
             let error_msg = response_str.replace("bot:ERROR:", "").trim().to_string();
             error!("WASM error: {}", error_msg);
@@ -121,7 +121,7 @@ impl WasmModelRunner {
             }
             "deepseek" | "deepseek-ai" => {
                 // Remove end markers if present
-                if let Some(end_pos) = parsed_response.find(" ") {
+                if let Some(end_pos) = parsed_response.find("[/INST]") {
                     parsed_response = parsed_response[..end_pos].to_string();
                 }
             }
@@ -137,7 +137,6 @@ impl LocalRunner for WasmModelRunner {
         if self.process.is_none() {
             return Err(anyhow!("Process not started"));
         }
-
         // format prompt
         let prompt = self.format_prompt(&request.messages);
         // send prompt
@@ -186,63 +185,45 @@ impl LocalRunner for WasmModelRunner {
         // read response in chunks
         let stdout = process.stdout.as_mut().ok_or(anyhow!("Failed to get stdout"))?;
         let mut reader = BufReader::new(stdout);
+        let mut buffer = [0u8; 1]; // read one byte at a time
         let mut accumulated = Vec::new();
-        let mut buffer = Vec::new();
         
-        // read response in chunks
         loop {
-            buffer.clear();
-            let bytes_read = reader.read_until(b'\n', &mut buffer)?;
-            
-            if bytes_read == 0 {
-                // EOF reached
-                break;
-            }
-            
-            // accumulate data
-            accumulated.extend_from_slice(&buffer);
-            
-            // check if null terminator is reached
-            if let Some(pos) = accumulated.iter().position(|&b| b == 0) {
-                // process data until null terminator
-                if let Ok(chunk_str) = String::from_utf8(accumulated[..pos].to_vec()) {
-                    let processed_chunk = self.process_response(&chunk_str);
-                    if !processed_chunk.is_empty() {
-                        if let Err(e) = sender.send(processed_chunk).await {
-                            error!("Failed to send final chunk: {}", e);
+            // read one byte
+            match reader.read(&mut buffer) {
+                Ok(0) => {
+                    // EOF reached
+                    debug!("EOF reached");
+                    break;
+                },
+                Ok(_) => {
+                    // check if null terminator is reached
+                    if buffer[0] == 0 {
+                        debug!("Null terminator reached");
+                        break;
+                    }
+                    
+                    // accumulate data
+                    accumulated.push(buffer[0]);
+                    
+                    // process and send data immediately
+                    if let Ok(chunk_str) = String::from_utf8(accumulated.clone()) {
+                        let processed_chunk = self.process_response(&chunk_str);
+                        if !processed_chunk.is_empty() {
+                            if let Err(e) = sender.send(processed_chunk).await {
+                                error!("Failed to send chunk: {}", e);
+                                break;
+                            }
                         }
                     }
-                }
-                break;
-            }
-            
-            // if accumulated enough data, process and send
-            if accumulated.len() > 64 {
-                if let Ok(chunk_str) = String::from_utf8(accumulated.clone()) {
-                    let processed_chunk = self.process_response(&chunk_str);
-                    if !processed_chunk.is_empty() {
-                        if let Err(e) = sender.send(processed_chunk).await {
-                            error!("Failed to send chunk: {}", e);
-                            break;
-                        }
-                    }
-                    accumulated.clear();
+                },
+                Err(e) => {
+                    error!("Error reading from stdout: {}", e);
+                    break;
                 }
             }
         }
-
-        // process remaining data
-        if !accumulated.is_empty() {
-            if let Ok(chunk_str) = String::from_utf8(accumulated) {
-                let processed_chunk = self.process_response(&chunk_str);
-                if !processed_chunk.is_empty() {
-                    if let Err(e) = sender.send(processed_chunk).await {
-                        error!("Failed to send final chunk: {}", e);
-                    }
-                }
-            }
-        }
-
+        
         Ok(())
     }
 

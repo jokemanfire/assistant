@@ -136,7 +136,6 @@ async fn main() -> Result<()> {
                                 println!("\nError: Failed to get streaming response.");
                                 break;
                             }
-
                             // print chunk
                             print!("{}", chunk);
                             stdout.flush()?;
@@ -145,7 +144,7 @@ async fn main() -> Result<()> {
                             full_response.push_str(&chunk);
                         }
 
-                        println!(); // 换行
+                        println!();
 
                         // add assistant response to message history
                         messages.push(AssistantClient::create_assistant_message(&full_response));

@@ -22,6 +22,32 @@ message ChatMessage{
   string content = 2;
 }
 
+enum MessageType {
+  Stream = 0;
+  Done = 1;
+  Error = 2;
+  Heartbeat = 3;
+  Pong = 4;
+  Ping = 5;
+  Connected = 6;
+  Message = 7;
+}
+
+// Stream message structure
+message ServerMessage {
+  MessageType msg_type = 1;
+  optional string content = 2;
+  string session_id = 3;
+  optional string error = 4;
+}
+
+// Client message structure
+message ClientMessage {
+  MessageType msg_type = 1;
+  optional string content = 2;
+  Role role = 3;
+}
+
 // Text request containing a sequence of chat messages
 message TextRequest {
   repeated ChatMessage messages = 1;

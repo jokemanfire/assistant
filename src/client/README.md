@@ -7,6 +7,7 @@ This is a command line client for interacting with the Assistant service. It use
 - List available models
 - Check the status of a specific model
 - Send a single message and get a response
+- Chat with a model,use stream
 - Conduct interactive chat sessions
 
 ## Usage

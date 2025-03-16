@@ -4,8 +4,9 @@ const GRPC_PROTO_FILES: &[&str] = &["./vendor/mserver.proto", "./vendor/model.pr
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     tonic_build::configure()
+        .protoc_arg("--experimental_allow_proto3_optional")
         .out_dir("./src/grpc")
-        // .compile_well_known_types(true)
+        .type_attribute(".", "#[derive(serde::Serialize, serde::Deserialize)]")
         .build_server(true)
         .build_client(true)
         .compile_protos(GRPC_PROTO_FILES, &["./vendor"])

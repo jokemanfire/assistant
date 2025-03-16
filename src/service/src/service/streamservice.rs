@@ -2,7 +2,7 @@ use crate::config::Config;
 use crate::modeldeal::chat::DialogueModel;
 use futures_util::{SinkExt, StreamExt};
 use log::{debug, error, info, warn};
-use protos::grpc::model::{ChatMessage, Role};
+use protos::grpc::model::{ChatMessage, Role, MessageType, ServerMessage, ClientMessage};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::error::Error;
@@ -28,23 +28,7 @@ struct Session {
     last_active: std::time::Instant,
 }
 
-// WebSocket message types
-#[derive(Serialize, Deserialize, Debug)]
-struct ClientMessage {
-    #[serde(rename = "type")]
-    msg_type: String,
-    content: Option<String>,
-    role: Option<String>,
-}
 
-#[derive(Serialize, Deserialize, Debug)]
-struct ServerMessage {
-    #[serde(rename = "type")]
-    msg_type: String,
-    content: Option<String>,
-    session_id: Option<String>,
-    error: Option<String>,
-}
 
 // Connection tracking
 type Sessions = Arc<Mutex<HashMap<String, Session>>>;
@@ -268,26 +252,41 @@ impl StreamService {
         let ws_stream = accept_async(stream).await?;
         info!("WebSocket connection established with: {}", peer);
 
-        // Extract path from the request to get session ID
-        // Note: In a real implementation, you would extract this from the HTTP request
-        // For now, we'll assume the session ID is in the URL path
-        let path = peer.to_string(); // Placeholder
-        let parts: Vec<&str> = path.split('/').collect();
-        let session_id = if parts.len() > 2 && parts[1] == "chat" {
-            parts[2].to_string()
-        } else {
-            debug!("Invalid WebSocket path: {}", path);
-            return Err("Invalid WebSocket path".into());
-        };
+        // find valid session_id from sessions
+        let session_id = {
+            let sessions_lock = sessions.lock().unwrap();
+            // if there is only one active session, use it
+            if sessions_lock.len() == 1 {
+                sessions_lock.keys().next().cloned()
+            } else {
+                // 否则尝试查找最近活跃的session
+                let mut most_recent = None;
+                let mut most_recent_time = std::time::Instant::now() - Duration::from_secs(3600); // 1小时前
+                
+                for (id, session) in sessions_lock.iter() {
+                    if session.last_active > most_recent_time {
+                        most_recent = Some(id.clone());
+                        most_recent_time = session.last_active;
+                    }
+                }
+                
+                most_recent
+            }
+        }.ok_or_else(|| {
+            debug!("No valid session found for connection from: {}", peer);
+            "No valid session found"
+        })?;
+        
+        debug!("Using session ID: {}", session_id);
 
-        // Check if session exists
+        // Check if session exists and update last active time
         let session = {
             let mut sessions_lock = sessions.lock().unwrap();
             if let Some(session) = sessions_lock.get_mut(&session_id) {
                 session.last_active = std::time::Instant::now();
                 session.clone()
             } else {
-                // Session not found
+                // Session not found (should not happen at this point)
                 return Err("Session not found".into());
             }
         };
@@ -321,9 +320,9 @@ impl StreamService {
 
         // Send welcome message
         let welcome_msg = ServerMessage {
-            msg_type: "connected".to_string(),
+            msg_type: MessageType::Connected as i32,
             content: None,
-            session_id: Some(session_id.clone()),
+            session_id: session_id.clone(),
             error: None,
         };
 
@@ -367,9 +366,9 @@ impl StreamService {
             loop {
                 tokio::time::sleep(HEARTBEAT_INTERVAL).await;
                 let heartbeat_msg = ServerMessage {
-                    msg_type: "heartbeat".to_string(),
+                    msg_type: MessageType::Heartbeat as i32,
                     content: None,
-                    session_id: Some(heartbeat_session_id.clone()),
+                    session_id: heartbeat_session_id.clone(),
                     error: None,
                 };
 
@@ -452,9 +451,9 @@ impl StreamService {
             Err(e) => {
                 error!("Failed to parse client message: {}", e);
                 let error_msg = ServerMessage {
-                    msg_type: "error".to_string(),
+                    msg_type: MessageType::Error as i32,
                     content: None,
-                    session_id: Some(session_id.to_string()),
+                    session_id: session_id.to_string(),
                     error: Some("Invalid message format".to_string()),
                 };
                 let _ = tx.send(serde_json::to_string(&error_msg).unwrap());
@@ -462,19 +461,15 @@ impl StreamService {
             }
         };
 
-        match client_msg.msg_type.as_str() {
-            "message" => {
+        match client_msg.msg_type  {
+            x if x == MessageType::Message as i32 => {
                 // Handle chat message
                 if let Some(content) = client_msg.content {
-                    let role = match client_msg.role.as_deref() {
-                        Some("system") => Role::System,
-                        Some("assistant") => Role::Assistant,
-                        _ => Role::User, // Default to user
-                    };
+                    let role =  client_msg.role;
 
                     // Create chat message
                     let chat_msg = ChatMessage {
-                        role: role as i32,
+                        role,
                         content,
                     };
 
@@ -488,9 +483,9 @@ impl StreamService {
                         } else {
                             // Session not found
                             let error_msg = ServerMessage {
-                                msg_type: "error".to_string(),
+                                msg_type: MessageType::Error as i32,
                                 content: None,
-                                session_id: Some(session_id.to_string()),
+                                session_id: session_id.to_string(),
                                 error: Some("Session not found".to_string()),
                             };
                             let _ = tx.send(serde_json::to_string(&error_msg).unwrap());
@@ -508,12 +503,12 @@ impl StreamService {
                     ));
                 }
             }
-            "ping" => {
+            x if x == MessageType::Ping as i32 => {
                 // Respond to ping
                 let pong_msg = ServerMessage {
-                    msg_type: "pong".to_string(),
+                    msg_type: MessageType::Pong as i32,
                     content: None,
-                    session_id: Some(session_id.to_string()),
+                    session_id: session_id.to_string(),
                     error: None,
                 };
                 let _ = tx.send(serde_json::to_string(&pong_msg).unwrap());
@@ -521,9 +516,9 @@ impl StreamService {
             _ => {
                 // Unknown message type
                 let error_msg = ServerMessage {
-                    msg_type: "error".to_string(),
+                    msg_type: MessageType::Error as i32,
                     content: None,
-                    session_id: Some(session_id.to_string()),
+                    session_id: session_id.to_string(),
                     error: Some("Unknown message type".to_string()),
                 };
                 let _ = tx.send(serde_json::to_string(&error_msg).unwrap());
@@ -539,17 +534,10 @@ impl StreamService {
         dialogue_model: Arc<DialogueModel>,
         local_service: Arc<crate::service::localservice::LocalService>,
     ) {
-        // Send "thinking" message
-        let thinking_msg = ServerMessage {
-            msg_type: "thinking".to_string(),
-            content: None,
-            session_id: Some(session_id.clone()),
-            error: None,
-        };
-        let _ = tx.send(serde_json::to_string(&thinking_msg).unwrap());
-
         // Try remote model first if configured
         if !dialogue_model.config.remote_models.is_empty() {
+            // This is not stream response, so we need to send the whole response at once Now
+            // TODO: add stream response
             match dialogue_model
                 .get_streaming_response_online(messages.clone(), tx.clone(), session_id.clone())
                 .await
@@ -588,9 +576,9 @@ impl StreamService {
                     Err(e) => {
                         warn!("Local model streaming failed: {}", e);
                         let error_msg = ServerMessage {
-                            msg_type: "error".to_string(),
+                            msg_type: MessageType::Error as i32,
                             content: None,
-                            session_id: Some(session_id),
+                            session_id: session_id.clone(),
                             error: Some(format!("Processing failed: {}", e)),
                         };
                         let _ = tx.send(serde_json::to_string(&error_msg).unwrap());
@@ -600,9 +588,9 @@ impl StreamService {
             Err(_) => {
                 // No local model available
                 let error_msg = ServerMessage {
-                    msg_type: "error".to_string(),
+                    msg_type: MessageType::Error as i32,
                     content: None,
-                    session_id: Some(session_id),
+                    session_id: session_id.clone(),
                     error: Some("No model available for processing".to_string()),
                 };
                 let _ = tx.send(serde_json::to_string(&error_msg).unwrap());
@@ -664,9 +652,9 @@ impl DialogueModel {
         let chunks = Self::split_into_chunks(&full_response, 10);
         for chunk in chunks {
             let stream_msg = ServerMessage {
-                msg_type: "stream".to_string(),
+                msg_type: MessageType::Stream as i32,
                 content: Some(chunk),
-                session_id: Some(session_id.clone()),
+                session_id: session_id.clone(),
                 error: None,
             };
 
@@ -676,9 +664,9 @@ impl DialogueModel {
 
         // Send completion message
         let done_msg = ServerMessage {
-            msg_type: "done".to_string(),
+            msg_type: MessageType::Done as i32,
             content: Some(full_response),
-            session_id: Some(session_id),
+            session_id: session_id.clone(),
             error: None,
         };
 
@@ -709,40 +697,40 @@ impl crate::service::localservice::LocalService {
         tx: mpsc::UnboundedSender<String>,
         session_id: String,
     ) -> Result<(), Box<dyn Error>> {
-        // In a real implementation, you would connect to your local model
-        // and stream the response chunks
-
-        // For now, we'll simulate streaming with the regular chat method
         match self.chat_stream(messages).await {
             Ok(mut response_channel) => {
-                // Read from the channel
+                let mut previous_text = String::new();
+                
                 while let Some(response) = response_channel.recv().await {
-                    let chunks = DialogueModel::split_into_chunks(&response, 10);
-                    for chunk in chunks {
-                        let stream_msg = ServerMessage {
-                            msg_type: "stream".to_string(),
-                            content: Some(chunk),
-                            session_id: Some(session_id.clone()),
-                            error: None,
-                        };
-
-                        tx.send(serde_json::to_string(&stream_msg).unwrap())?;
-                        tokio::time::sleep(Duration::from_millis(100)).await;
-                    }
-
-                    // Send completion message
-                    let done_msg = ServerMessage {
-                        msg_type: "done".to_string(),
-                        content: Some(response),
-                        session_id: Some(session_id.clone()),
+                    let new_text = if response.len() > previous_text.len() {
+                        response[previous_text.len()..].to_string()
+                    } else {
+                        continue;
+                    };
+                    
+                    previous_text = response;
+                    
+                    let stream_msg = ServerMessage {
+                        msg_type: MessageType::Stream as i32,
+                        content: Some(new_text),
+                        session_id: session_id.clone(),
                         error: None,
                     };
-
-                    tx.send(serde_json::to_string(&done_msg).unwrap())?;
+                    tokio::time::sleep(Duration::from_millis(100)).await;
+                    tx.send(serde_json::to_string(&stream_msg).unwrap())?;
                 }
-                Ok(())
             }
-            Err(e) => Err(e.into()),
+            Err(e) => { return Err(e.into());},
         }
+
+        let done_msg = ServerMessage {
+            msg_type: MessageType::Done as i32,
+            content: None,
+            session_id: session_id.clone(),
+            error: None,
+        };
+
+        tx.send(serde_json::to_string(&done_msg).unwrap())?;
+        Ok(())
     }
 }

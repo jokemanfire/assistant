@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use anyhow::{anyhow, Result};
 use futures_util::{SinkExt, StreamExt};
-use protos::grpc::model::StreamingRequest;
+use protos::grpc::model::{MessageType, ServerMessage, StreamingRequest};
 use protos::grpc::model::{
     model_service_client::ModelServiceClient, ChatMessage, Role, SpeechRequest, TextRequest,
 };
@@ -90,28 +90,39 @@ impl AssistantClient {
         &mut self,
         messages: Vec<ChatMessage>,
     ) -> Result<mpsc::Receiver<String>> {
-        // 获取WebSocket URL
         let ws_url = self.get_streaming_url(messages).await?;
-
-        // 创建一个通道用于发送接收到的消息
         let (tx, rx) = mpsc::channel(32);
 
-        // 解析URL
         let url = Url::parse(&ws_url).map_err(|e| anyhow!("Invalid WebSocket URL: {}", e))?;
 
-        // 在后台任务中连接WebSocket并处理消息
+        // Connect to WebSocket and handle messages
         tokio::spawn(async move {
             match connect_async(url).await {
                 Ok((ws_stream, _)) => {
                     let (_, mut read) = ws_stream.split();
 
-                    // 读取WebSocket消息
                     while let Some(message) = read.next().await {
                         match message {
                             Ok(Message::Text(text)) => {
-                                // 发送接收到的文本消息
-                                if tx.send(text).await.is_err() {
-                                    break;
+                                // println!("Received message: {}", text);
+                                // Analyze the message
+                                match serde_json::from_str::<ServerMessage>(&text) {
+                                    Ok(server_message) => {
+                                        let message_type = server_message.msg_type;
+                                        if message_type == MessageType::Stream as i32 {
+                                            if let Some(content) = server_message.content {
+                                                if tx.send(content).await.is_err() {
+                                                    break;
+                                                }
+                                            }
+                                        } else if message_type == MessageType::Done as i32 {
+                                            break;
+                                        }
+                                    }
+                                    Err(e) => {
+                                        let _ = tx.send(format!("Error: {}", e)).await;
+                                        break;
+                                    }
                                 }
                             }
                             Ok(Message::Close(_)) => {
@@ -121,7 +132,7 @@ impl AssistantClient {
                                 let _ = tx.send(format!("Error: {}", e)).await;
                                 break;
                             }
-                            _ => {} // 忽略其他类型的消息
+                            _ => {} 
                         }
                     }
                 }
