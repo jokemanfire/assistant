@@ -1,88 +1,144 @@
 # Assistant
-After the deepseek-ai model is published, The cost of large models will become lower and easier to run locally. The project goal is to deploy multiple large models locally and complete their load balancing.
 
-## Notice
-Local model only support chat mode(Deepseek-ai, Qwen). Now
-Remote model only support siliconflow model. Now
+A powerful LLM service platform that connects multiple AI models via gRPC, enabling seamless deployment and load balancing across various environments.
 
+## Core Vision
 
-## Use local model
+To create a unified AI interface that abstracts away model-specific details, allowing users to focus solely on their queries and receiving quality responses without concerning themselves with backend implementation details.
 
-1. install wasmedge with ggml plugin
-``` sh
-curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- --plugins wasi_nn-ggml
+## System Architecture
+
+```mermaid
+flowchart TD
+    subgraph clients["Client Applications"]
+        cli["CLI App"]
+        web["Web UI"]
+        chatbox["ChatBox"]
+        custom["Custom App"]
+    end
+    
+    subgraph grpc["gRPC Interface"]
+    end
+    
+    subgraph manager["Model Manager & Routing"]
+    end
+    
+    subgraph models["Models"]
+        subgraph local["Local Models"]
+            deepseek["DeepSeek"]
+            qwen["Qwen"]
+            wasm["WASM Models"]
+        end
+        
+        subgraph remote["Remote Models"]
+            silicon["Silicon Flow"]
+            openai["OpenAI API"]
+            customapi["Custom API"]
+        end
+        
+        subgraph streaming["Streaming & Advanced"]
+            rag["RAG || MCP"]
+            sse["Server-Sent Events"]
+        end
+    end
+    
+    clients --> grpc
+    web -. "may be web interface" .-> clients
+    grpc --> manager
+    manager --> local
+    manager --> remote
+    manager --> streaming
 ```
 
-2. download ggml model
-``` sh
-wget https://huggingface.co/Qwen/Qwen1.5-0.5B-Chat-GGUF/resolve/main/qwen1_5-0_5b-chat-q2_k.gguf
-```
+## Key Features
 
-3. build wasme-ggml
-``` sh
-cd wasmedge-ggml
-rustup target add wasm32-wasi
-cargo build --target wasm32-wasi --release
-```
-4. default config path
-``` sh
-mkdir -p /etc/assistant/service
-cargo run -p assistant-service config > /etc/assistant/service/config.toml
-```
-## Project Overview
+- **Model Abstraction**: Users interact with a unified API, regardless of the underlying model
+- **Multiple Model Support**: Deploy and manage local, remote, and third-party models
+- **Load Balancing**: Intelligently distribute queries across available models
+- **Streaming Response**: Support for real-time streaming of model outputs
+- **Extensible Architecture**: Easily add new models and services as they become available
 
-This project implements a C-S AI Service. 
-1.support offline and online AI implement. 
-2.support multiple clients.
-3.support multiple models.
-4.support multiple services.
+## Getting Started
 
-### Support ChatBox Now
-you should build with feature `http_api`
-and then set the chatbox config like this:
-![示例](./images/chatbox.png)
+### Running the Service
 
+The service supports multiple local models, remote services, and streaming capabilities.
 
-### Local Model Implementation
-Use WASM to implement local models, supporting:
-In Chat mode:
-- Deepseek-ai model
-- Qwen model
-In Audio mode:
-- Chatts (TODO)
-- Whisper (TODO)
+1. **Install WasmEdge with GGML plugin**:
+   ```sh
+   curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- --plugins wasi_nn-ggml
+   ```
 
-## Usage
+2. **Download GGML model**:
+   ```sh
+   wget https://huggingface.co/Qwen/Qwen1.5-0.5B-Chat-GGUF/resolve/main/qwen1_5-0_5b-chat-q2_k.gguf
+   ```
 
-### 1. Service
-You can run multiple local models in the service.And online service also support.
+3. **Build WASM-GGML**:
+   ```sh
+   cd wasmedge-ggml
+   rustup target add wasm32-wasi
+   cargo build --target wasm32-wasi --release
+   ```
 
-The service module handles the core functionality of the voice assistant. To run the service, follow these steps:
+4. **Generate default configuration**:
+   ```sh
+   mkdir -p /etc/assistant/service
+   cargo run -p assistant-service config > /etc/assistant/service/config.toml
+   ```
 
-#### 1.1. Run
+5. **Start the service**:
+   ```sh
+   cargo run -p assistant-service
+   ```
 
-Make sure you have Rust and Cargo installed. Then, navigate to the project root and run:
+### Configuration
 
-``` sh
-cargo run -p assistant-service
-```
+Edit the configuration file located at `/etc/assistant/service/config.toml` to:
+- Add your API keys for remote services
+- Configure local models
+- Set up load balancing preferences
+- Enable or disable specific features
 
-#### 1.2. Configure API Key
+### Supported Models
 
-In the `/etc/assistant/service/config.toml` file, locate the line where the API key is set and replace `<your_api_key>` with your actual API key.
+#### Local Models
+- DeepSeek-AI (Chat mode)
+- Qwen (Chat mode)
+- Custom WASM-based models
 
-#### 1.3. Choose the model
+#### Remote Models
+- Silicon Flow
+- Other API-based services (configurable)
 
-The Default config give the example.
+#### Coming Soon
+- Audio models (ChatTS, Whisper)
+- Vision models
 
+## Client Usage
 
-### 2. Client
-Check `src/client/README.md`
+Multiple client implementations are available:
+
+- **CLI Client**: `cargo run -p assistant-client`
+- **Web Interface**: Build with `http_api` feature
+- **ChatBox Integration**: Configure as shown below:
+
+![ChatBox Configuration Example](./images/chatbox.png)
+
+For detailed client instructions, see 
+[client README](./src/client/README.md).
+
+## Project Structure
+
+- **Service**: Core functionality, model management, API interfaces
+- **Client**: Reference implementations for connecting to the service
+- **Plugins**: Extensibility modules for additional features
+- **Protos**: gRPC protocol definitions
 
 ## Contributing
 
-Contributions are welcome! Please submit issues or pull requests.
+We welcome contributions! Please submit issues or pull requests on GitHub.
 
 ## License
 
-This project is licensed under the MIT License. See the LICENSE file for more details.
+This project is licensed under the MIT License. See the LICENSE file for details.

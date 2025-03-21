@@ -33,38 +33,92 @@ impl WasmModelRunner {
         // Format based on model type
         match self.config.model_type.as_str() {
             "deepseek-ai" | "deepseek" => {
-                for msg in messages {
-                    let role = match msg.role() {
-                        Role::User => "User",
-                        Role::Assistant => "Assistant",
-                        Role::System => "System",
-                        _ => "User",
-                    };
+                // Add system prompt
+                if let Some(sys_prompt) = system_prompt {
+                    prompt.push_str(&format!("[INST] {}\n[/INST]\n", sys_prompt));
+                }
 
-                    if role == "System" {
-                        prompt.push_str(&format!("[INST]{}\n[/INST]", msg.content));
-                    } else {
-                        prompt.push_str(&format!("[INST]{}[/INST]\n", msg.content));
+                // Add conversation history
+                for msg in messages.iter().filter(|m| m.role != Role::System as i32) {
+                    if msg.role == Role::User as i32 {
+                        prompt.push_str(&format!("[INST] {}\n[/INST]\n", msg.content));
+                    } else if msg.role == Role::Assistant as i32 {
+                        prompt.push_str(&format!("{}\n", msg.content));
+                    }
+                }
+            },
+            "llama" | "llama2" => {
+                // Llama2 Chat format
+                if let Some(sys_prompt) = system_prompt {
+                    prompt.push_str(&format!("<s>[INST] <<SYS>>\n{}\n<</SYS>>\n\n", sys_prompt));
+                } else {
+                    prompt.push_str("<s>[INST] <<SYS>>\nYou are a helpful assistant.\n<</SYS>>\n\n");
+                }
+
+                // Add conversation history
+                let mut is_user_turn = true;
+                for msg in messages.iter().filter(|m| m.role != Role::System as i32) {
+                    if msg.role == Role::User as i32 {
+                        if !is_user_turn {
+                            prompt.push_str("[/INST]\n\n[INST] ");
+                        }
+                        prompt.push_str(&msg.content);
+                        is_user_turn = true;
+                    } else if msg.role == Role::Assistant as i32 {
+                        if is_user_turn {
+                            prompt.push_str(" [/INST]\n");
+                        }
+                        prompt.push_str(&format!("{}\n", msg.content));
+                        is_user_turn = false;
                     }
                 }
 
-                // Add the assistant prefix for the response
-                prompt.push_str("\n[INST]");
-            }
-            _ => {
-                // Qwen format: <|im_start|>system\n{system}<|im_end|>\n<|im_start|>user\n{user}<|im_end|>\n<|im_start|>assistant\n{assistant}<|im_end|>
-                // Add system message if available
-                if let Some(system_prompt) = system_prompt {
-                    prompt.push_str(&format!(
-                        "<|im_start|>system\n{}\n<|im_end|>\n",
-                        system_prompt
-                    ));
-                }else{
-                    prompt.push_str(&format!(
-                        "<|im_start|>system\n{}\n<|im_end|>\n",
-                        "you are a helpful assistant"
-                    ));
+                if is_user_turn {
+                    prompt.push_str(" [/INST]\n");
                 }
+            },
+            "mistral" => {
+                // Mistral Instruct format
+                if let Some(sys_prompt) = system_prompt {
+                    prompt.push_str(&format!("<s>[INST] {}\n", sys_prompt));
+                } else {
+                    prompt.push_str("<s>[INST] ");
+                }
+
+                // Add conversation history
+                let mut is_user_turn = true;
+                for msg in messages.iter().filter(|m| m.role != Role::System as i32) {
+                    if msg.role == Role::User as i32 {
+                        if !is_user_turn {
+                            prompt.push_str("\n[INST] ");
+                        }
+                        prompt.push_str(&msg.content);
+                        is_user_turn = true;
+                    } else if msg.role == Role::Assistant as i32 {
+                        if is_user_turn {
+                            prompt.push_str(" [/INST]\n");
+                        }
+                        prompt.push_str(&msg.content);
+                        is_user_turn = false;
+                    }
+                }
+
+                if is_user_turn {
+                    prompt.push_str(" [/INST]\n");
+                }
+            },
+            _ => {
+                // Qwen and default format: <|im_start|>system\n{system}<|im_end|>\n<|im_start|>user\n{user}<|im_end|>\n<|im_start|>assistant\n{assistant}<|im_end|>
+                // Add system message if available
+                if let Some(sys_prompt) = system_prompt {
+                    prompt.push_str(&format!(
+                        "<|im_start|>system\n{}\n<|im_end|>\n",
+                        sys_prompt
+                    ));
+                } else {
+                    prompt.push_str("<|im_start|>system\nYou are a helpful assistant.\n<|im_end|>\n");
+                }
+
                 // Add conversation history
                 for msg in messages
                     .iter()
@@ -110,7 +164,9 @@ impl WasmModelRunner {
         // Check if response is empty
         if parsed_response.trim().is_empty() {
             warn!("Empty response from WASM model");
+            return String::new();
         }
+
         // Remove any special tokens or formatting from the response
         match self.config.model_type.to_lowercase().as_str() {
             "qwen" => {
@@ -125,9 +181,23 @@ impl WasmModelRunner {
                     parsed_response = parsed_response[..end_pos].to_string();
                 }
             }
-            _ => {}
+            "llama" | "llama2" => {
+                // Remove end markers if present
+                if let Some(end_pos) = parsed_response.find("</s>") {
+                    parsed_response = parsed_response[..end_pos].to_string();
+                }
+            }
+            _ => {
+                // Generic cleanup for any model
+                for token in &["<|im_end|>", "</s>", "[UNUSED_TOKEN]", "[/INST]", "[gMASK]", "<|end|>"] {
+                    if let Some(pos) = parsed_response.find(token) {
+                        parsed_response = parsed_response[..pos].to_string();
+                    }
+                }
+            }
         }
-        parsed_response
+
+        parsed_response.trim().to_string()
     }
 }
 
