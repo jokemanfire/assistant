@@ -19,6 +19,9 @@ flowchart TD
     
     subgraph grpc["gRPC Interface"]
     end
+
+    subgraph http_api["HTTP API(optional)"]
+    end
     
     subgraph manager["Model Manager & Routing"]
     end
@@ -43,8 +46,9 @@ flowchart TD
     end
     
     clients --> grpc
-    web -. "may be web interface" .-> clients
+    clients --> http_api
     grpc --> manager
+    http_api --> grpc
     manager --> local
     manager --> remote
     manager --> streaming
