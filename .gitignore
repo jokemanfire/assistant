@@ -2,3 +2,5 @@
 Cargo.lock
 models/*.gguf
 .vscode
+crates/protos/src/grpc/*
+!crates/protos/src/grpc/mod.rs

@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package assistant;
+
+// Service for handling model requests
+service AssistantService {
+  // Forward HTTP request to scheduler
+  rpc ForwardRequest (Request) returns (Response);
+  
+  // Get service information
+  rpc GetInfo (InfoRequest) returns (InfoResponse);
+  // Stream request
+  rpc ForwardRequestStream (Request) returns (stream Response) {}
+}
+
+// Generic request message
+message Request {
+  string path = 1;  // API path
+  string method = 2; // HTTP method
+  bytes body = 3;   // Request body
+  map<string, string> headers = 4; // Request headers
+}
+
+// Generic response message  
+message Response {
+  int32 status = 1;  // HTTP status code
+  bytes body = 2;    // Response body
+  map<string, string> headers = 3; // Response headers
+}
+
+// Info request message
+message InfoRequest {}
+
+// Info response message
+message InfoResponse {
+  string version = 1;
+  repeated string models = 2;
+  repeated string endpoints = 3;
+} 

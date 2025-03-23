@@ -1,0 +1,15 @@
+[package]
+name = "grpc-server"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { workspace = true }
+tonic = { workspace = true }
+prost = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+scheduler = { path = "../scheduler" }
+protos = { path = "../protos" }
+tokio-stream = "0.1"
+futures = { workspace = true } 

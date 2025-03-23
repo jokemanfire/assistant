@@ -1,72 +1,49 @@
-# Assistant
+ # Assistant
 
-A powerful LLM service platform that connects multiple AI models via gRPC, enabling seamless deployment and load balancing across various environments.
-
-## Core Vision
-
-To create a unified AI interface that abstracts away model-specific details, allowing users to focus solely on their queries and receiving quality responses without concerning themselves with backend implementation details.
+A LLM service platform based on llama-api-server, providing OpenAI API-compatible HTTP interface with multi-model management and load balancing capabilities.
 
 ## System Architecture
 
 ```mermaid
 flowchart TD
     subgraph clients["Client Applications"]
-        cli["CLI App"]
-        web["Web UI"]
+        cli["CLI Tools"]
+        web["Web Applications"]
         chatbox["ChatBox"]
-        custom["Custom App"]
+        custom["Custom Apps"]
     end
     
-    subgraph grpc["gRPC Interface"]
-    end
-
-    subgraph http_api["HTTP API(optional)"]
-    end
-    
-    subgraph manager["Model Manager & Routing"]
+    subgraph http_api["HTTP API"]
+        openai["OpenAI API Compatible"]
+        sse["Server-Sent Events"]
     end
     
-    subgraph models["Models"]
-        subgraph local["Local Models"]
-            deepseek["DeepSeek"]
-            qwen["Qwen"]
-            wasm["WASM Models"]
-        end
-        
-        subgraph remote["Remote Models"]
-            silicon["Silicon Flow"]
-            openai["OpenAI API"]
-            customapi["Custom API"]
-        end
-        
-        subgraph streaming["Streaming & Advanced"]
-            rag["RAG || MCP"]
-            sse["Server-Sent Events"]
-        end
+    subgraph manager["Model Manager"]
+        scheduler["Scheduler"]
+        load_balance["Load Balancer"]
     end
     
-    clients --> grpc
+    subgraph models["Model Layer"]
+        llama["llama-api-server"]
+        wasm["WASM Interface"]
+    end
+    
     clients --> http_api
-    grpc --> manager
-    http_api --> grpc
-    manager --> local
-    manager --> remote
-    manager --> streaming
+    http_api --> manager
+    manager --> models
 ```
 
 ## Key Features
 
-- **Model Abstraction**: Users interact with a unified API, regardless of the underlying model
-- **Multiple Model Support**: Deploy and manage local, remote, and third-party models
-- **Load Balancing**: Intelligently distribute queries across available models
-- **Streaming Response**: Support for real-time streaming of model outputs
-- **Extensible Architecture**: Easily add new models and services as they become available
+- **OpenAI API Compatibility**: Fully compatible HTTP interface with OpenAI API
+- **Multi-Model Support**: Deploy and manage multiple local models
+- **Load Balancing**: Intelligent request distribution across available models
+- **Streaming Response**: Support for Server-Sent Events streaming
+- **Flexible Configuration**: Customizable model and system configurations
 
-## Getting Started
+## Quick Start
 
-### Running the Service
-
-The service supports multiple local models, remote services, and streaming capabilities.
+### Install Dependencies
 
 1. **Install WasmEdge with GGML plugin**:
    ```sh
@@ -78,71 +55,69 @@ The service supports multiple local models, remote services, and streaming capab
    wget https://huggingface.co/Qwen/Qwen1.5-0.5B-Chat-GGUF/resolve/main/qwen1_5-0_5b-chat-q2_k.gguf
    ```
 
-3. **Build WASM-GGML**:
+### Configure Service
+
+1. **Generate default configuration**:
    ```sh
-   cd wasmedge-ggml
-   rustup target add wasm32-wasi
-   cargo build --target wasm32-wasi --release
+   cargo run -- --model-config
    ```
 
-4. **Generate default configuration**:
-   ```sh
-   mkdir -p /etc/assistant/service
-   cargo run -p assistant-service config > /etc/assistant/service/config.toml
-   ```
+2. **Modify configuration file**:
+   The configuration file is located at `/etc/assistant/config.toml`. Please refer to the default configuration for modifications:
+   - Set model paths
+   - Configure ports and concurrency
+   - Adjust other parameters
 
-5. **Start the service**:
-   ```sh
-   cargo run -p assistant-service
-   ```
+### Start Service
 
-### Configuration
+```sh
+cargo run
+```
 
-Edit the configuration file located at `/etc/assistant/service/config.toml` to:
-- Add your API keys for remote services
-- Configure local models
-- Set up load balancing preferences
-- Enable or disable specific features
+## Configuration Guide
 
-### Supported Models
+### Main Configuration (/etc/assistant/config.toml)
 
-#### Local Models
-- DeepSeek-AI (Chat mode)
-- Qwen (Chat mode)
-- Custom WASM-based models
+```toml
+[server]
+port = 3000
+max_instances = 3
+max_load = 0.8
 
-#### Remote Models
-- Silicon Flow
-- Other API-based services (configurable)
+[[remote_servers]]
+name = "remote1"
+grpc_addr = "localhost:50051"
+weight = 1
+enabled = true
+```
 
-#### Coming Soon
-- Audio models (ChatTS, Whisper)
-- Vision models
+### Model Configuration
 
-## Client Usage
+Use `--model-config` to generate default model configuration with the following main parameters:
+- `name`: Model name
+- `model_path`: Path to model file
+- `port`: Service port
+- `ctx_size`: Context size
+- `batch_size`: Batch size
 
-Multiple client implementations are available:
+## Development Roadmap
 
-- **CLI Client**: `cargo run -p assistant-client`
-- **Web Interface**: Build with `http_api` feature
-- **ChatBox Integration**: Configure as shown below:
-
-![ChatBox Configuration Example](./images/chatbox.png)
-
-For detailed client instructions, see 
-[client README](./src/client/README.md).
+- [ ] RAG (Retrieval-Augmented Generation) support
+- [ ] Lower-level WASM interface for better performance
+- [ ] gRPC model download support
+- [ ] Optimize support for high-concurrency models
+- [ ] MCP protocol support for client tools
+- [ ] Enhanced configuration options
 
 ## Project Structure
 
-- **Service**: Core functionality, model management, API interfaces
-- **Client**: Reference implementations for connecting to the service
-- **Plugins**: Extensibility modules for additional features
-- **Protos**: gRPC protocol definitions
-
-## Contributing
-
-We welcome contributions! Please submit issues or pull requests on GitHub.
+- `src/`: Main program source code
+- `crates/`: Core modules
+  - `scheduler/`: Model scheduler
+  - `grpc-server/`: gRPC service
+  - `http-server/`: HTTP service
+  - `protos/`: Protocol definitions
 
 ## License
 
-This project is licensed under the MIT License. See the LICENSE file for details.
+MIT License
