@@ -18,6 +18,10 @@ flowchart TD
         sse["Server-Sent Events"]
     end
     
+    subgraph grpc_api["gRPC API"]
+        assistant["Assistant API (supports request forwarding)"]
+    end
+
     subgraph manager["Model Manager"]
         scheduler["Scheduler"]
         load_balance["Load Balancer"]
@@ -29,7 +33,8 @@ flowchart TD
     end
     
     clients --> http_api
-    http_api --> manager
+    http_api --> grpc_api
+    grpc_api --> manager
     manager --> models
 ```
 

@@ -12,12 +12,16 @@ flowchart TD
         chatbox["ChatBox"]
         custom["自定义应用"]
     end
-    
+
     subgraph http_api["HTTP API"]
         openai["OpenAI API 兼容"]
         sse["Server-Sent Events"]
     end
-    
+
+    subgraph grpc_api["gRPC API"]
+        assistant["Assistant API 支持请求转发"]
+    end
+
     subgraph manager["模型管理器"]
         scheduler["调度器"]
         load_balance["负载均衡"]
@@ -29,7 +33,8 @@ flowchart TD
     end
     
     clients --> http_api
-    http_api --> manager
+    http_api --> grpc_api
+    grpc_api --> manager
     manager --> models
 ```
 
