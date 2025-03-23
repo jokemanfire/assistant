@@ -79,16 +79,24 @@ cargo run
 ### 主配置文件 (/etc/assistant/config.toml)
 
 ```toml
-[server]
-port = 3000
-max_instances = 3
-max_load = 0.8
+remote_servers = []  # 远程服务器列表
 
-[[remote_servers]]
-name = "remote1"
-grpc_addr = "localhost:50051"
-weight = 1
-enabled = true
+[server]
+grpc_addr = "0.0.0.0:50051"  # gRPC 服务地址
+http_addr = "0.0.0.0:8080"  # HTTP 服务地址
+
+[scheduler]
+config_dir = "/etc/assistant/models"  # 模型配置目录
+max_instances = 10  # 最大实例数
+max_load = 0.800000011920929  # 最大负载
+
+[[llama_servers]]
+name = "default"  # 模型名称
+chat_model_path = "/home/hu/code/assistant/models/qwen1_5-0_5b-chat-q2_k.gguf"  # 聊天模型路径
+embedding_model_path = ""  # 嵌入模型路径
+tts_model_path = ""  # 语音模型路径
+port = 8000  # 服务端口
+config_path = "/home/hu/code/assistant/default.toml  # 配置文件路径
 ```
 
 ### 模型配置
@@ -108,6 +116,7 @@ enabled = true
 - [ ] 优化大量并发模型的支持
 - [ ] 客户端工具支持 MCP 协议
 - [ ] 完善配置项
+- [ ] 优化负载均衡调度器
 
 ## 项目结构
 

@@ -79,16 +79,24 @@ cargo run
 ### Main Configuration (/etc/assistant/config.toml)
 
 ```toml
-[server]
-port = 3000
-max_instances = 3
-max_load = 0.8
+remote_servers = []  # Remote server list
 
-[[remote_servers]]
-name = "remote1"
-grpc_addr = "localhost:50051"
-weight = 1
-enabled = true
+[server]
+grpc_addr = "0.0.0.0:50051"  # gRPC service address
+http_addr = "0.0.0.0:8080"  # HTTP service address
+
+[scheduler]
+config_dir = "/etc/assistant/models"  # Model configuration directory
+max_instances = 10  # Maximum number of instances
+max_load = 0.800000011920929  # Maximum load
+
+[[llama_servers]]
+name = "default"  # Model name
+chat_model_path = "/home/hu/code/assistant/models/qwen1_5-0_5b-chat-q2_k.gguf"  # Chat model path
+embedding_model_path = ""  # Embedding model path
+tts_model_path = ""  # TTS model path
+port = 8000  # Service port
+config_path = "/home/hu/code/assistant/default.toml  # Configuration file path
 ```
 
 ### Model Configuration
@@ -108,6 +116,7 @@ Use `--model-config` to generate default model configuration with the following 
 - [ ] Optimize support for high-concurrency models
 - [ ] MCP protocol support for client tools
 - [ ] Enhanced configuration options
+- [ ] Enhanced the blance scheduler
 
 ## Project Structure
 
